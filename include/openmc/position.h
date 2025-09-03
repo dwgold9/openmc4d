@@ -18,10 +18,12 @@ namespace openmc {
 struct Position {
   // Constructors
   Position() = default;
-  Position(double x_, double y_, double z_) : x {x_}, y {y_}, z {z_} {};
-  Position(const double xyz[]) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]} {};
-  Position(const vector<double>& xyz) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]} {};
-  Position(const array<double, 3>& xyz) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]} {};
+  Position(double x_, double y_, double z_) : x {x_}, y {y_}, z {z_}, t {0} {};
+  Position(const double xyz[]) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]}, t {0} {};
+  Position(const vector<double>& xyz) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]}, t {xyz.size() > 3 ? xyz[3] : 0.0} {};
+  Position(const array<double, 3>& xyz) : x {xyz[0]}, y {xyz[1]}, z {xyz[2]}, t {0} {};
+  Position(double x_, double y_, double z_, double t_) : x {x_}, y {y_}, z {z_}, t {t_} {};
+  Position(const array<double, 4>& xyzt) : x {xyzt[0]}, y {xyzt[1]}, z {xyzt[2]}, t {xyzt[3]} {};
 
   // Unary operators
   Position& operator+=(Position);
@@ -43,8 +45,10 @@ struct Position {
       return y;
     case 2:
       return z;
+    case 3:
+      return t;
     default:
-      throw std::out_of_range {"Index in Position must be between 0 and 2."};
+      throw std::out_of_range {"Index in Position must be between 0 and 3."};
     }
   }
   double& operator[](int i)
@@ -56,21 +60,23 @@ struct Position {
       return y;
     case 2:
       return z;
+    case 3:
+      return t;
     default:
-      throw std::out_of_range {"Index in Position must be between 0 and 2."};
+      throw std::out_of_range {"Index in Position must be between 0 and 3."};
     }
   }
 
-  // Access to x, y, or z by compile time known index (specializations below)
+  // Access to x, y, z, or t by compile time known index (specializations below)
   template<int i>
   const double& get() const
   {
-    throw std::out_of_range {"Index in Position must be between 0 and 2."};
+    throw std::out_of_range {"Index in Position must be between 0 and 3."};
   }
   template<int i>
   double& get()
   {
-    throw std::out_of_range {"Index in Position must be between 0 and 2."};
+    throw std::out_of_range {"Index in Position must be between 0 and 3."};
   }
 
   // Other member functions
@@ -82,7 +88,20 @@ struct Position {
   {
     return x * other.x + y * other.y + z * other.z;
   }
+  inline double dot4(Position other) const
+  {
+    return x * other.x + y * other.y + z * other.z + t * other.t;
+  }
   inline double norm() const { return std::sqrt(x * x + y * y + z * z); }
+  inline double norm4() const { return std::sqrt(x * x + y * y + z * z + t * t); }
+  inline Position normalize()
+  {
+    int n = std::sqrt(x * x + y * y + z * z);
+    x /= n;
+    y /= n;
+    z /= n;
+    return *this;
+  }
   inline Position cross(Position other) const
   {
     return {y * other.z - z * other.y, z * other.x - x * other.z,
@@ -100,7 +119,7 @@ struct Position {
   {
     return {x * rotation[0] + y * rotation[1] + z * rotation[2],
       x * rotation[3] + y * rotation[4] + z * rotation[5],
-      x * rotation[6] + y * rotation[7] + z * rotation[8]};
+      x * rotation[6] + y * rotation[7] + z * rotation[8], t};
   }
 
   //! Rotate the position by applying the inverse of a rotation matrix
@@ -110,13 +129,14 @@ struct Position {
   {
     return {x * rotation[0] + y * rotation[3] + z * rotation[6],
       x * rotation[1] + y * rotation[4] + z * rotation[7],
-      x * rotation[2] + y * rotation[5] + z * rotation[8]};
+      x * rotation[2] + y * rotation[5] + z * rotation[8], t};
   }
 
   // Data members
   double x = 0.;
   double y = 0.;
   double z = 0.;
+  double t = 0.;
 };
 
 // Compile-time known member index access functions
@@ -136,6 +156,11 @@ inline const double& Position::get<2>() const
   return z;
 }
 template<>
+inline const double& Position::get<3>() const
+{
+  return t;
+}
+template<>
 inline double& Position::get<0>()
 {
   return x;
@@ -149,6 +174,11 @@ template<>
 inline double& Position::get<2>()
 {
   return z;
+}
+template<>
+inline double& Position::get<3>()
+{
+  return t;
 }
 
 // Binary operators
@@ -206,20 +236,20 @@ inline Position operator/(double a, Position b)
 
 inline Position Position::reflect(Position n) const
 {
-  const double projection = n.dot(*this);
-  const double magnitude = n.dot(n);
+  const double projection = n.dot4(*this);
+  const double magnitude = n.dot4(n);
   n *= (2.0 * projection / magnitude);
   return *this - n;
 }
 
 inline bool operator==(Position a, Position b)
 {
-  return a.x == b.x && a.y == b.y && a.z == b.z;
+  return a.x == b.x && a.y == b.y && a.z == b.z && a.t == b.t;
 }
 
 inline bool operator!=(Position a, Position b)
 {
-  return a.x != b.x || a.y != b.y || a.z != b.z;
+  return a.x != b.x || a.y != b.y || a.z != b.z || a.t != b.t;
 }
 
 std::ostream& operator<<(std::ostream& os, Position a);
@@ -244,7 +274,7 @@ struct formatter<openmc::Position> : formatter<std::string> {
   {
 #endif
     return formatter<std::string>::format(
-      fmt::format("({}, {}, {})", pos.x, pos.y, pos.z), ctx);
+      fmt::format("({}, {}, {}, {})", pos.x, pos.y, pos.z, pos.t), ctx);
 }
 }; // namespace fmt
 
