@@ -16,6 +16,16 @@ constexpr const char* VERSION_COMMIT_HASH = "@OPENMC_COMMIT_HASH@";
 constexpr std::array<int, 3> VERSION {VERSION_MAJOR, VERSION_MINOR, VERSION_RELEASE};
 // clang-format on
 
+// Fork (OpenMC-4D) version
+constexpr const char* VERSION_EXTENSION = "@OPENMC_FORK_VERSION@";
+
+// Base upstream OpenMC version (for reference)
+constexpr int BASE_VERSION_MAJOR {@OPENMC_VERSION_MAJOR@};
+constexpr int BASE_VERSION_MINOR {@OPENMC_VERSION_MINOR@};
+constexpr int BASE_VERSION_PATCH {@OPENMC_VERSION_PATCH@};
+
+
 } // namespace openmc
+
 
 #endif // OPENMC_VERSION_H

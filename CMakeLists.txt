@@ -6,11 +6,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 
 include(GetVersionFromGit)
 
+# Fork version (primary identifier for OpenMC-4D)
+set(OPENMC_FORK_VERSION "4d.0.1")
+
 # Output version information
 message(STATUS "OpenMC version: ${OPENMC_VERSION}")
 message(STATUS "OpenMC dev state: ${OPENMC_DEV_STATE}")
 message(STATUS "OpenMC commit hash: ${OPENMC_COMMIT_HASH}")
 message(STATUS "OpenMC commit count: ${OPENMC_COMMIT_COUNT}")
+message(STATUS "OpenMC fork suffix: ${OPENMC_FORK_SUFFIX}")
 
 # Generate version.h
 configure_file(include/openmc/version.h.in "${CMAKE_BINARY_DIR}/include/openmc/version.h" @ONLY)
@@ -565,6 +569,7 @@ target_link_libraries(openmc libopenmc)
 target_compile_features(openmc PUBLIC cxx_std_17)
 target_compile_features(libopenmc PUBLIC cxx_std_17)
 set_target_properties(openmc libopenmc PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(openmc PROPERTIES OUTPUT_NAME "openmc4d")
 
 #===============================================================================
 # Python package

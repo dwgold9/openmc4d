@@ -3,14 +3,17 @@ requires = ["setuptools", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openmc"
+name = "openmc4d"
+
 authors = [
-    {name = "The OpenMC Development Team", email = "openmc@anl.gov"},
+    { name = "Davis Golden", email = "dgolden@tamu.edu" },
+    { name = "The OpenMC Development Team", email = "openmc@anl.gov" },
 ]
-description = "OpenMC"
+
+description = "OpenMC with 4D time-structured neutronics extensions"
 dynamic = ["version"]
 requires-python = ">=3.11"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -25,6 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
+
 dependencies = [
     "numpy",
     "h5py",
@@ -58,9 +62,10 @@ Documentation = "https://docs.openmc.org"
 Repository = "https://github.com/openmc-dev/openmc"
 Issues = "https://github.com/openmc-dev/openmc/issues"
 
+# include both the real package and the shim
 [tool.setuptools.packages.find]
-include = ['openmc*']
-exclude = ['tests*']
+include = ["openmc4d*"]
+exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 "openmc.data.effective_dose" = ["**/*.txt"]
