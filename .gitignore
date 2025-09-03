@@ -11,7 +11,7 @@
 # Python distribution
 .settings/
 dist/
-openmc.egg-info/
+openmc4d.egg-info/
 
 # Inputs generated from Python API
 examples/**/*.xml
