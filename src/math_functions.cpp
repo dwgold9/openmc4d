@@ -782,12 +782,12 @@ Direction rotate_angle(
   if (b > 1e-10) {
     return {mu * u.x + a * (u.x * u.z * cosphi - u.y * sinphi) / b,
       mu * u.y + a * (u.y * u.z * cosphi + u.x * sinphi) / b,
-      mu * u.z - a * b * cosphi};
+      mu * u.z - a * b * cosphi, u.t};
   } else {
     b = std::sqrt(1. - u.y * u.y);
     return {mu * u.x + a * (-u.x * u.y * sinphi + u.z * cosphi) / b,
       mu * u.y + a * b * sinphi,
-      mu * u.z - a * (u.y * u.z * sinphi + u.x * cosphi) / b};
+      mu * u.z - a * (u.y * u.z * sinphi + u.x * cosphi) / b, u.t};
   }
 }
 
