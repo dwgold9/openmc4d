@@ -45,6 +45,7 @@ void LocalCoord::reset()
   lattice_index_[0] = 0;
   lattice_index_[1] = 0;
   lattice_index_[2] = 0;
+  lattice_index_[3] = 0;
   rotated_ = false;
 }
 

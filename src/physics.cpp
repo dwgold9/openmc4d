@@ -739,6 +739,8 @@ void scatter(Particle& p, int i_nuclide)
       p.mu() = u_old.dot(p.u());
     }
   }
+  // Update particle's time velocity
+  p.resynchronize4d();  
 }
 
 void elastic_scatter(int i_nuclide, const Reaction& rx, double kT, Particle& p)

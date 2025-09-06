@@ -71,6 +71,20 @@ double Particle::speed() const
   }
 }
 
+void Particle::resynchronize4d()
+{
+  // Synchronize the time coordinate direction
+  // as the inverse of speed (μs/cm)
+  if (u().t >= 0) {
+    u().t = 1e6 / speed();
+  }
+  // Particles reflected from a time-dependent surface
+  // can have a negative time direction
+  else {
+    u().t = - 1e6 / speed();
+  }
+}
+
 bool Particle::create_secondary(
   double wgt, Direction u, double E, ParticleType type)
 {

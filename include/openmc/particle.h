@@ -39,6 +39,8 @@ public:
 
   double speed() const;
 
+  void resynchronize4d();
+
   //! create a secondary particle
   //
   //! stores the current phase space attributes of the particle in the
