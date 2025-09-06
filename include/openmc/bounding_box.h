@@ -19,6 +19,8 @@ struct BoundingBox {
   double ymax = INFTY;
   double zmin = -INFTY;
   double zmax = INFTY;
+  double tmin = -INFTY;
+  double tmax = INFTY;
 
   inline BoundingBox operator&(const BoundingBox& other)
   {
@@ -41,6 +43,8 @@ struct BoundingBox {
     ymax = std::min(ymax, other.ymax);
     zmin = std::max(zmin, other.zmin);
     zmax = std::min(zmax, other.zmax);
+    tmin = std::max(tmin, other.tmin);
+    tmax = std::min(tmax, other.tmax);
     return *this;
   }
 
@@ -53,11 +57,13 @@ struct BoundingBox {
     ymax = std::max(ymax, other.ymax);
     zmin = std::min(zmin, other.zmin);
     zmax = std::max(zmax, other.zmax);
+    tmin = std::min(tmin, other.tmin);
+    tmax = std::max(tmax, other.tmax);
     return *this;
   }
 
-  inline Position min() const { return {xmin, ymin, zmin}; }
-  inline Position max() const { return {xmax, ymax, zmax}; }
+  inline Position min() const { return {xmin, ymin, zmin, tmin}; }
+  inline Position max() const { return {xmax, ymax, zmax, tmax}; }
 };
 
 } // namespace openmc

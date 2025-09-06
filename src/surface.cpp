@@ -146,7 +146,7 @@ Direction Surface::diffuse_reflect(
   // cosine distribution
 
   Direction n = this->normal(r);
-  n /= n.norm();
+  n /= n.norm4();
   const double projection = n.dot(u);
 
   // sample from inverse function, u=sqrt(rand) since p(u)=2u, so F(u)=u^2
@@ -238,7 +238,7 @@ double SurfaceXPlane::distance(Position r, Direction u, bool coincident) const
 
 Direction SurfaceXPlane::normal(Position r) const
 {
-  return {1., 0., 0.};
+  return {1., 0., 0., 0.};
 }
 
 void SurfaceXPlane::to_hdf5_inner(hid_t group_id) const
@@ -251,9 +251,9 @@ void SurfaceXPlane::to_hdf5_inner(hid_t group_id) const
 BoundingBox SurfaceXPlane::bounding_box(bool pos_side) const
 {
   if (pos_side) {
-    return {x0_, INFTY, -INFTY, INFTY, -INFTY, INFTY};
+    return {x0_, INFTY, -INFTY, INFTY, -INFTY, INFTY, -INFTY, INFTY};
   } else {
-    return {-INFTY, x0_, -INFTY, INFTY, -INFTY, INFTY};
+    return {-INFTY, x0_, -INFTY, INFTY, -INFTY, INFTY, -INFTY, INFTY};
   }
 }
 
@@ -278,7 +278,7 @@ double SurfaceYPlane::distance(Position r, Direction u, bool coincident) const
 
 Direction SurfaceYPlane::normal(Position r) const
 {
-  return {0., 1., 0.};
+  return {0., 1., 0., 0.};
 }
 
 void SurfaceYPlane::to_hdf5_inner(hid_t group_id) const
@@ -291,9 +291,9 @@ void SurfaceYPlane::to_hdf5_inner(hid_t group_id) const
 BoundingBox SurfaceYPlane::bounding_box(bool pos_side) const
 {
   if (pos_side) {
-    return {-INFTY, INFTY, y0_, INFTY, -INFTY, INFTY};
+    return {-INFTY, INFTY, y0_, INFTY, -INFTY, INFTY, -INFTY, INFTY};
   } else {
-    return {-INFTY, INFTY, -INFTY, y0_, -INFTY, INFTY};
+    return {-INFTY, INFTY, -INFTY, y0_, -INFTY, INFTY, -INFTY, INFTY};
   }
 }
 
@@ -318,7 +318,7 @@ double SurfaceZPlane::distance(Position r, Direction u, bool coincident) const
 
 Direction SurfaceZPlane::normal(Position r) const
 {
-  return {0., 0., 1.};
+  return {0., 0., 1., 0.};
 }
 
 void SurfaceZPlane::to_hdf5_inner(hid_t group_id) const
@@ -331,9 +331,49 @@ void SurfaceZPlane::to_hdf5_inner(hid_t group_id) const
 BoundingBox SurfaceZPlane::bounding_box(bool pos_side) const
 {
   if (pos_side) {
-    return {-INFTY, INFTY, -INFTY, INFTY, z0_, INFTY};
+    return {-INFTY, INFTY, -INFTY, INFTY, z0_, INFTY, -INFTY, INFTY};
   } else {
-    return {-INFTY, INFTY, -INFTY, INFTY, -INFTY, z0_};
+    return {-INFTY, INFTY, -INFTY, INFTY, -INFTY, z0_, -INFTY, INFTY};
+  }
+}
+
+//==============================================================================
+// SurfaceTPlane implementation
+//==============================================================================
+
+SurfaceTPlane::SurfaceTPlane(pugi::xml_node surf_node) : Surface(surf_node)
+{
+  read_coeffs(surf_node, id_, {&t0_});
+}
+
+double SurfaceTPlane::evaluate(Position r) const
+{
+  return r.t - t0_;
+}
+
+double SurfaceTPlane::distance(Position r, Direction u, bool coincident) const
+{
+  return axis_aligned_plane_distance<3>(r, u, coincident, t0_);
+}
+
+Direction SurfaceTPlane::normal(Position r) const
+{
+  return {0., 0., 0., 1.};
+}
+
+void SurfaceTPlane::to_hdf5_inner(hid_t group_id) const
+{
+  write_string(group_id, "type", "t-plane", false);
+  array<double, 1> coeffs {{t0_}};
+  write_dataset(group_id, "coefficients", coeffs);
+}
+
+BoundingBox SurfaceTPlane::bounding_box(bool pos_side) const
+{
+  if (pos_side) {
+    return {-INFTY, INFTY, -INFTY, INFTY, -INFTY, INFTY, t0_, INFTY};
+  } else {
+    return {-INFTY, INFTY, -INFTY, INFTY, -INFTY, INFTY, -INFTY, t0_};
   }
 }
 
@@ -343,18 +383,18 @@ BoundingBox SurfaceZPlane::bounding_box(bool pos_side) const
 
 SurfacePlane::SurfacePlane(pugi::xml_node surf_node) : Surface(surf_node)
 {
-  read_coeffs(surf_node, id_, {&A_, &B_, &C_, &D_});
+  read_coeffs(surf_node, id_, {&A_, &B_, &C_, &D_, &E_});
 }
 
 double SurfacePlane::evaluate(Position r) const
 {
-  return A_ * r.x + B_ * r.y + C_ * r.z - D_;
+  return A_ * r.x + B_ * r.y + C_ * r.z + E_ * r.t - D_;
 }
 
 double SurfacePlane::distance(Position r, Direction u, bool coincident) const
 {
-  const double f = A_ * r.x + B_ * r.y + C_ * r.z - D_;
-  const double projection = A_ * u.x + B_ * u.y + C_ * u.z;
+  const double f = A_ * r.x + B_ * r.y + C_ * r.z + E_ * r.t - D_;
+  const double projection = A_ * u.x + B_ * u.y + C_ * u.z + E_ * u.t;
   if (coincident || std::abs(f) < FP_COINCIDENT || projection == 0.0) {
     return INFTY;
   } else {
@@ -367,13 +407,13 @@ double SurfacePlane::distance(Position r, Direction u, bool coincident) const
 
 Direction SurfacePlane::normal(Position r) const
 {
-  return {A_, B_, C_};
+  return {A_, B_, C_, E_};
 }
 
 void SurfacePlane::to_hdf5_inner(hid_t group_id) const
 {
   write_string(group_id, "type", "plane", false);
-  array<double, 4> coeffs {{A_, B_, C_, D_}};
+  array<double, 5> coeffs {{A_, B_, C_, D_, E_}};
   write_dataset(group_id, "coefficients", coeffs);
 }
 
@@ -1199,6 +1239,9 @@ void read_surfaces(pugi::xml_node node)
 
       } else if (surf_type == "z-plane") {
         model::surfaces.push_back(make_unique<SurfaceZPlane>(surf_node));
+        
+      } else if (surf_type == "t-plane") {
+        model::surfaces.push_back(make_unique<SurfaceTPlane>(surf_node));
 
       } else if (surf_type == "plane") {
         model::surfaces.push_back(make_unique<SurfacePlane>(surf_node));

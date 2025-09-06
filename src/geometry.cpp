@@ -481,11 +481,13 @@ extern "C" int openmc_global_bounding_box(double* llc, double* urc)
   llc[0] = bbox.xmin;
   llc[1] = bbox.ymin;
   llc[2] = bbox.zmin;
+  llc[3] = bbox.tmin;
 
   // set upper right corner values
   urc[0] = bbox.xmax;
   urc[1] = bbox.ymax;
   urc[2] = bbox.zmax;
+  urc[3] = bbox.tmax;
 
   return 0;
 }

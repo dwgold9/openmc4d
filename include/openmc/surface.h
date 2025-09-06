@@ -158,9 +158,27 @@ public:
 };
 
 //==============================================================================
+//! A plane perpendicular to the t-axis.
+//
+//! The plane is described by the equation \f$t - t_0 = 0\f$
+//==============================================================================
+
+class SurfaceTPlane : public Surface {
+public:
+  explicit SurfaceTPlane(pugi::xml_node surf_node);
+  double evaluate(Position r) const override;
+  double distance(Position r, Direction u, bool coincident) const override;
+  Direction normal(Position r) const override;
+  void to_hdf5_inner(hid_t group_id) const override;
+  BoundingBox bounding_box(bool pos_side) const override;
+
+  double t0_;
+};
+
+//==============================================================================
 //! A general plane.
 //
-//! The plane is described by the equation \f$A x + B y + C z - D = 0\f$
+//! The plane is described by the equation \f$A x + B y + C z + E t - D = 0\f$
 //==============================================================================
 
 class SurfacePlane : public Surface {
@@ -171,7 +189,7 @@ public:
   Direction normal(Position r) const override;
   void to_hdf5_inner(hid_t group_id) const override;
 
-  double A_, B_, C_, D_;
+  double A_, B_, C_, D_, E_;
 };
 
 //==============================================================================
