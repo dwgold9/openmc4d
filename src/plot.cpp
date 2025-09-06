@@ -144,7 +144,7 @@ void Plot::print_info() const
   }
 
   // Plot parameters
-  fmt::print("Origin: {} {} {}\n", origin_[0], origin_[1], origin_[2]);
+  fmt::print("Origin: {} {} {} {}\n", origin_[0], origin_[1], origin_[2], origin_[3]);
 
   if (PlotType::slice == type_) {
     fmt::print("Width: {:4} {:4}\n", width_[0], width_[1]);
@@ -168,6 +168,15 @@ void Plot::print_info() const
       break;
     case PlotBasis::yz:
       fmt::print("Basis: YZ\n");
+      break;
+    case PlotBasis::xt:
+      fmt::print("Basis: XT\n");
+      break;
+    case PlotBasis::yt:
+      fmt::print("Basis: YT\n");
+      break;
+    case PlotBasis::zt:
+      fmt::print("Basis: ZT\n");
       break;
     }
     fmt::print("Pixels: {} {}\n", pixels_[0], pixels_[1]);
@@ -393,6 +402,12 @@ void Plot::set_basis(pugi::xml_node plot_node)
       basis_ = PlotBasis::xz;
     } else if ("yz" == pl_basis) {
       basis_ = PlotBasis::yz;
+    } else if ("xt" == pl_basis) {
+      basis_ = PlotBasis::xt;
+    } else if ("yt" == pl_basis) {
+      basis_ = PlotBasis::yt;
+    } else if ("zt" == pl_basis) {
+      basis_ = PlotBasis::zt;  
     } else {
       fatal_error(
         fmt::format("Unsupported plot basis '{}' in plot {}", pl_basis, id()));
@@ -406,8 +421,12 @@ void Plot::set_origin(pugi::xml_node plot_node)
   auto pl_origin = get_node_array<double>(plot_node, "origin");
   if (pl_origin.size() == 3) {
     origin_ = pl_origin;
-  } else {
-    fatal_error(fmt::format("Origin must be length 3 in plot {}", id()));
+  }
+  else if (pl_origin.size() == 4) {
+    origin_ = pl_origin;
+  }
+  else {
+    fatal_error(fmt::format("Origin must be length 3 or 4 in plot {}", id()));
   }
 }
 
@@ -834,6 +853,18 @@ void Plot::draw_mesh_lines(ImageData& data) const
   case PlotBasis::yz:
     ax1 = 1;
     ax2 = 2;
+    break;
+  case PlotBasis::xt:
+    ax1 = 0;
+    ax2 = 3;
+    break;
+  case PlotBasis::yt:
+    ax1 = 1;
+    ax2 = 3;
+    break;
+  case PlotBasis::zt:
+    ax1 = 2;
+    ax2 = 3;
     break;
   default:
     UNREACHABLE();
