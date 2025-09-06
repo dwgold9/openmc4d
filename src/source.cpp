@@ -358,8 +358,12 @@ SourceSite IndependentSource::sample(uint64_t* seed) const
 
   while (!accepted) {
 
+    // Sample particle creation time
+    site.time = time_->sample(seed);
+
     // Sample spatial distribution
     site.r = space_->sample(seed);
+    site.r.t = site.time;
 
     // Check if sampled position satisfies spatial constraints
     accepted = satisfies_spatial_constraints(site.r);
@@ -399,9 +403,6 @@ SourceSite IndependentSource::sample(uint64_t* seed) const
       n_reject++;
       check_rejection_fraction(n_reject, n_accept);
     }
-
-    // Sample particle creation time
-    site.time = time_->sample(seed);
   }
 
   // Increment number of accepted samples
