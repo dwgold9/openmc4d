@@ -705,7 +705,7 @@ class PlaneMixin:
 
 
 class Plane(PlaneMixin, Surface):
-    """An arbitrary plane of the form :math:`Ax + By + Cz + Et = D`.
+    """An arbitrary plane of the form :math:`Ax + By + Cz = D - Et`.
 
     Parameters
     ----------
