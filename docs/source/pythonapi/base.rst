@@ -71,6 +71,7 @@ Building geometry
    openmc.XPlane
    openmc.YPlane
    openmc.ZPlane
+   openmc.TPlane
    openmc.XCylinder
    openmc.YCylinder
    openmc.ZCylinder

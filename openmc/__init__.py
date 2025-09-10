@@ -42,4 +42,4 @@ from openmc.model import Model
 from . import examples
 
 
-__version__ = importlib.metadata.version("openmc")
+__version__ = importlib.metadata.version("openmc4d")
