@@ -13,9 +13,10 @@ from openmc.checkvalue import PathLike
 from ._xml import clean_indentation, get_elem_list, get_text
 from .mixin import IDManagerMixin
 
-_BASES = {'xy', 'xz', 'yz'}
+_BASES = {'xy', 'xz', 'yz', 'xt', 'yt', 'zt'}
 
-_BASIS_INDICES = {'xy': (0, 1, 2), 'xz': (0, 2, 1), 'yz': (1, 2, 0)}
+_BASIS_INDICES = {'xy': (0, 1, 2, 3), 'xz': (0, 2, 1, 3), 'yz': (1, 2, 0, 3),
+                  'xt': (1, 2, 3, 0), 'yt': (2, 1, 3, 0),  'tz': (2, 3, 1, 0)}
 
 _SVG_COLORS = {
     'aliceblue': (240, 248, 255),
@@ -186,7 +187,7 @@ _PLOT_PARAMS = """
             and the number of pixels in each basis direction is calculated
             from this total and the image aspect ratio based on the width
             argument.
-        basis : {'xy', 'xz', 'yz'}
+        basis : {'xy', 'xz', 'yz', 'xt', 'yt', 'zt'}
             The basis directions for the plot
         color_by : {'cell', 'material'}
             Indicate whether the plot should be colored by cell or by material
@@ -685,7 +686,7 @@ class Plot(PlotBase):
     def __init__(self, plot_id=None, name=''):
         super().__init__(plot_id, name)
         self._width = [4.0, 4.0]
-        self._origin = [0., 0., 0.]
+        self._origin = [0., 0., 0., 0.]
         self._type = 'slice'
         self._basis = 'xy'
         self._meshlines = None
@@ -707,8 +708,11 @@ class Plot(PlotBase):
     @origin.setter
     def origin(self, origin):
         cv.check_type('plot origin', origin, Iterable, Real)
-        cv.check_length('plot origin', origin, 3)
-        self._origin = origin
+        cv.check_length('plot origin', origin, 3, 4)
+        if len(origin) == 3:
+            self._origin = origin + [0]
+        else:
+            self._origin = origin
 
     @property
     def type(self):
@@ -784,18 +788,22 @@ class Plot(PlotBase):
         return string
 
     @classmethod
-    def from_geometry(cls, geometry, basis='xy', slice_coord=0.):
+    def from_geometry(cls, geometry, basis='xy', slice_coord=0., slice_coord2=0.):
         """Return plot that encompasses a geometry.
 
         Parameters
         ----------
         geometry : openmc.Geometry
             The geometry to base the plot off of
-        basis : {'xy', 'xz', 'yz'}
+        basis : {'xy', 'xz', 'yz', 'xt', 'yt','zt'}
             The basis directions for the plot
         slice_coord : float
-            The level at which the slice plot should be plotted. For example, if
+            The first level at which the slice plot should be plotted. For example, if
             the basis is 'xy', this would indicate the z value used in the
+            origin.
+        slice_coord2 : float
+            The second level at which the slice plot should be plotted. For example, if
+            the basis is 'xy', this would indicate the t value used in the
             origin.
 
         """
@@ -806,12 +814,27 @@ class Plot(PlotBase):
         if basis == 'xy':
             pick_index = (0, 1)
             slice_index = 2
+            slice_index2 = 3
         elif basis == 'yz':
             pick_index = (1, 2)
             slice_index = 0
+            slice_index2 = 3
         elif basis == 'xz':
             pick_index = (0, 2)
             slice_index = 1
+            slice_index2 = 3
+        elif basis == 'xt' and dimension == 4:
+            pick_index = (3, 0)
+            slice_index = 1
+            slice_index2 = 2
+        elif basis == 'yt' and dimension == 4:
+            pick_index = (3, 1)
+            slice_index = 0
+            slice_index2 = 2
+        elif basis == 'zt' and dimension == 4:
+            pick_index = (3, 2)
+            slice_index = 0
+            slice_index2 = 1
 
         # Get lower-left and upper-right coordinates for desired axes
         lower_left, upper_right = geometry.bounding_box
@@ -823,7 +846,12 @@ class Plot(PlotBase):
                              f'in the {basis} plane.')
 
         plot = cls()
-        plot.origin = np.insert((lower_left + upper_right)/2,
+        if dimension == 4:
+            plot.origin = np.insert(np.insert((lower_left + upper_right) / 2,
+                                              slice_index, slice_coord), 
+                                              slice_index2, slice_coord2)
+        else:
+            plot.origin = np.insert((lower_left + upper_right) / 2,
                                 slice_index, slice_coord)
         plot.width = upper_right - lower_left
         plot.basis = basis

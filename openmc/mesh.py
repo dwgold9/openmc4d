@@ -1630,7 +1630,7 @@ class CylindricalMesh(StructuredMesh):
     @origin.setter
     def origin(self, coords):
         cv.check_type('mesh origin', coords, Iterable, Real)
-        cv.check_length("mesh origin", coords, 3)
+        cv.check_length("mesh origin", coords, 3, 4)
         self._origin = np.asarray(coords)
 
     @property

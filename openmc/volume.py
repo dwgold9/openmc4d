@@ -152,7 +152,7 @@ class VolumeCalculation:
     def lower_left(self, lower_left):
         name = 'lower-left bounding box coordinates',
         cv.check_type(name, lower_left, Iterable, Real)
-        cv.check_length(name, lower_left, 3)
+        cv.check_length(name, lower_left, 3, 4)
         self._lower_left = lower_left
 
     @property
@@ -163,7 +163,7 @@ class VolumeCalculation:
     def upper_right(self, upper_right):
         name = 'upper-right bounding box coordinates'
         cv.check_type(name, upper_right, Iterable, Real)
-        cv.check_length(name, upper_right, 3)
+        cv.check_length(name, upper_right, 3, 4)
         self._upper_right = upper_right
 
     @property

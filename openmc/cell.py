@@ -94,6 +94,8 @@ class Cell(IDManagerMixin):
         .. versionadded:: 0.12
     bounding_box : openmc.BoundingBox
         Axis-aligned bounding box of the cell
+    dimension : int
+        Dimension of the Euclidian geometry spanned by the cell (3 or 4)
 
     """
 
@@ -264,7 +266,7 @@ class Cell(IDManagerMixin):
     @translation.setter
     def translation(self, translation):
         cv.check_type('cell translation', translation, Iterable, Real)
-        cv.check_length('cell translation', translation, 3)
+        cv.check_length('cell translation', translation, 3, 4)
         self._translation = np.asarray(translation)
 
     @property
@@ -344,7 +346,14 @@ class Cell(IDManagerMixin):
         if self.region is not None:
             return self.region.bounding_box
         else:
-            return BoundingBox.infinite()
+            return BoundingBox.infinite(dim=self.dimension)
+
+    @property
+    def dimension(self, dim=3):
+        if self.region is not None:
+            return self.region.dimension
+        else:
+            return None
 
     @property
     def num_instances(self):

@@ -45,6 +45,11 @@ class Region(ABC):
     def bounding_box(self) -> BoundingBox:
         pass
 
+    @property
+    @abstractmethod
+    def dimension(self):
+        pass
+
     @abstractmethod
     def __str__(self):
         pass
@@ -433,8 +438,8 @@ class Intersection(Region, MutableSequence):
 
         Parameters
         ----------
-        point : 3-tuple of float
-            Cartesian coordinates, :math:`(x',y',z')`, of the point
+        point : 3- or 4-tuple of float
+            Cartesian coordinates, :math:`(x',y',z',(t'))`, of the point
 
         Returns
         -------
@@ -449,10 +454,14 @@ class Intersection(Region, MutableSequence):
 
     @property
     def bounding_box(self) -> BoundingBox:
-        box = BoundingBox.infinite()
+        box = BoundingBox.infinite(self.dimension)
         for n in self:
             box &= n.bounding_box
         return box
+
+    @property
+    def dimension(self):
+        return max(n.dimension for n in self)
 
 
 class Union(Region, MutableSequence):
@@ -524,8 +533,8 @@ class Union(Region, MutableSequence):
 
         Parameters
         ----------
-        point : 3-tuple of float
-            Cartesian coordinates, :math:`(x',y',z')`, of the point
+        point : 3- or 4-tuple of float
+            Cartesian coordinates, :math:`(x',y',z',(t'))`, of the point
 
         Returns
         -------
@@ -539,12 +548,16 @@ class Union(Region, MutableSequence):
         return '(' + ' | '.join(map(str, self)) + ')'
 
     @property
-    def bounding_box(self) -> BoundingBox:
-        bbox = BoundingBox(np.array([np.inf]*3),
-                           np.array([-np.inf]*3))
+    def bounding_box(self, dim=4) -> BoundingBox:
+        bbox = BoundingBox(np.array([np.inf]*dim),
+                           np.array([-np.inf]*dim))
         for n in self:
             bbox |= n.bounding_box
         return bbox
+
+    @property
+    def dimension(self):
+        return max(n.dimension for n in self)
 
 
 class Complement(Region):
@@ -584,8 +597,8 @@ class Complement(Region):
 
         Parameters
         ----------
-        point : 3-tuple of float
-            Cartesian coordinates, :math:`(x',y',z')`, of the point
+        point : 3- or 4- tuple of float
+            Cartesian coordinates, :math:`(x',y',z',(t'))`, of the point
 
         Returns
         -------
@@ -614,6 +627,10 @@ class Complement(Region):
     @property
     def bounding_box(self) -> BoundingBox:
         return (~self.node).bounding_box
+
+    @property
+    def dimension(self):
+        return self.node.dimension
 
     def get_surfaces(self, surfaces=None):
         """Recursively find and return all the surfaces referenced by the node

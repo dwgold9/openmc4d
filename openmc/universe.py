@@ -416,6 +416,8 @@ class Universe(UniverseBase):
     bounding_box : openmc.BoundingBox
         Lower-left and upper-right coordinates of an axis-aligned bounding box
         of the universe.
+    dimension : int
+        Dimension of the Euclidian space spanned by the universe (3 or 4)
 
     """
 
@@ -439,6 +441,15 @@ class Universe(UniverseBase):
             return openmc.Union(regions).bounding_box
         else:
             return openmc.BoundingBox.infinite()
+
+    @property
+    def dimension(self):
+        regions = [c.region for c in self.cells.values()
+                   if c.region is not None]
+        if regions:
+            return openmc.Union(regions).dimension
+        else:
+            return None
 
     @classmethod
     def from_hdf5(cls, group, cells):

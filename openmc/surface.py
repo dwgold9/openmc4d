@@ -112,8 +112,9 @@ class Surface(IDManagerMixin, ABC):
     """An implicit surface with an associated boundary condition.
 
     An implicit surface is defined as the set of zeros of a function of the
-    three Cartesian coordinates. Surfaces in OpenMC are limited to a set of
-    algebraic surfaces, i.e., surfaces that are polynomial in x, y, and z.
+    three or four Cartesian coordinates. Surfaces in OpenMC are limited
+    to a set of algebraic surfaces, i.e., surfaces that are polynomial in x, y,
+    z, and t.
 
     Parameters
     ----------
@@ -167,6 +168,7 @@ class Surface(IDManagerMixin, ABC):
         # Key      - coefficient name
         # Value    - coefficient value
         self._coefficients = {}
+        self._dimension = 3
 
     def __neg__(self):
         return Halfspace(self, '-')
@@ -234,6 +236,10 @@ class Surface(IDManagerMixin, ABC):
     @property
     def coefficients(self):
         return self._coefficients
+
+    @property
+    def dimension(self):
+        return self._get_dimension()
 
     def bounding_box(self, side):
         """Determine an axis-aligned bounding box.
@@ -336,19 +342,32 @@ class Surface(IDManagerMixin, ABC):
         """
 
     @abstractmethod
+    def _get_dimension(self):
+        """
+        Return the Euclidian dimension of the surface as either
+        3 or 4 dimensional.
+
+        Returns
+        -------
+        dimension: int
+            the Euclidian dimension of the surface
+        """
+
+    @abstractmethod
     def evaluate(self, point):
         """Evaluate the surface equation at a given point.
 
         Parameters
         ----------
         point : 3-tuple of float
-            The Cartesian coordinates, :math:`(x',y',z')`, at which the surface
+        point : 3- or 4- tuple of float
+            The Cartesian coordinates, :math:`(x',y',z',(t'))`, at which the surface
             equation should be evaluated.
 
         Returns
         -------
         float
-            Evaluation of the surface polynomial at point :math:`(x',y',z')`
+            Evaluation of the surface polynomial at point :math:`(x',y',z',(t'))`
 
         """
 
@@ -523,11 +542,18 @@ class PlaneMixin:
         periodic_surface._periodic_surface = self
 
     def _get_base_coeffs(self):
-        return (self.a, self.b, self.c, self.d)
+        return (self.a, self.b, self.c, self.d, self.e)
 
     def _get_normal(self):
         a, b, c = self._get_base_coeffs()[:3]
-        return np.array((a, b, c)) / math.sqrt(a*a + b*b + c*c)
+        e = self._get_base_coeffs()[4]
+        return np.array((a, b, c, e)) / math.sqrt(a * a + b * b + c * c + e * e)
+
+    def _get_dimension(self):
+        if self._get_base_coeffs()[-1] != 0:
+            return 4
+        else:
+            return 3
 
     def bounding_box(self, side):
         """Determine an axis-aligned bounding box.
@@ -554,14 +580,14 @@ class PlaneMixin:
         """
         # Compute the bounding box based on the normal vector to the plane
         nhat = self._get_normal()
-        ll = np.array([-np.inf, -np.inf, -np.inf])
-        ur = np.array([np.inf, np.inf, np.inf])
+        ll = np.array([-np.inf, -np.inf, -np.inf, -np.inf])
+        ur = np.array([np.inf, np.inf, np.inf, np.inf])
         # If the plane is axis aligned, find the proper bounding box
         if np.any(np.isclose(np.abs(nhat), 1., rtol=0., atol=self._atol)):
             sign = nhat.sum()
-            a, b, c, d = self._get_base_coeffs()
-            vals = [d/val if not np.isclose(val, 0., rtol=0., atol=self._atol)
-                    else np.nan for val in (a, b, c)]
+            a, b, c, d, e = self._get_base_coeffs()
+            vals = [d / val if not np.isclose(val, 0., rtol=0., atol=self._atol)
+                    else np.nan for val in (a, b, c, e)]
             if side == '-':
                 if sign > 0:
                     ur = np.array([v if not np.isnan(v) else np.inf for v in vals])
@@ -580,8 +606,8 @@ class PlaneMixin:
 
         Parameters
         ----------
-        point : 3-tuple of float
-            The Cartesian coordinates, :math:`(x',y',z')`, at which the surface
+        point : 3- or 4- tuple of float
+            The Cartesian coordinates, :math:`(x',y',z',(t'))`, at which the surface
             equation should be evaluated.
 
         Returns
@@ -591,9 +617,13 @@ class PlaneMixin:
 
         """
 
-        x, y, z = point
-        a, b, c, d = self._get_base_coeffs()
-        return a*x + b*y + c*z - d
+        if len(point) == 3:
+            x, y, z = point
+            t = 0
+        else:
+            x, y, z, t = point
+        a, b, c, d, e = self._get_base_coeffs()
+        return a * x + b * y + c * z + e * t - d
 
     def translate(self, vector, inplace=False):
         """Translate surface in given direction
@@ -615,8 +645,11 @@ class PlaneMixin:
         if np.allclose(vector, 0., rtol=0., atol=self._atol):
             return self
 
-        a, b, c, d = self._get_base_coeffs()
-        d = d + np.dot([a, b, c], vector)
+        a, b, c, d, e = self._get_base_coeffs()
+        if len(vector) == 3:
+            d = d + np.dot([a, b, c], vector)
+        else:
+            d = d + np.dot([a, b, c, e], vector)
 
         surf = self if inplace else self.clone()
 
@@ -638,7 +671,7 @@ class PlaneMixin:
         # Translate surface to pivot
         surf = self.translate(-pivot, inplace=inplace)
 
-        a, b, c, d = surf._get_base_coeffs()
+        a, b, c, d, e = surf._get_base_coeffs()
         # Compute new rotated coefficients a, b, c
         a, b, c = Rmat @ [a, b, c]
 
@@ -648,7 +681,7 @@ class PlaneMixin:
         if inplace:
             kwargs['surface_id'] = surf.id
 
-        surf = Plane(a=a, b=b, c=c, d=d, **kwargs)
+        surf = Plane(a=a, b=b, c=c, d=d, e=e, **kwargs)
 
         return surf.translate(pivot, inplace=inplace)
 
@@ -672,7 +705,7 @@ class PlaneMixin:
 
 
 class Plane(PlaneMixin, Surface):
-    """An arbitrary plane of the form :math:`Ax + By + Cz = D`.
+    """An arbitrary plane of the form :math:`Ax + By + Cz + Et = D`.
 
     Parameters
     ----------
@@ -684,6 +717,8 @@ class Plane(PlaneMixin, Surface):
         The 'C' parameter for the plane. Defaults to 0.
     d : float, optional
         The 'D' parameter for the plane. Defaults to 0.
+    e : float, optional
+        The 'E' parameter for the plane. Defaults to 0.
     boundary_type : {'transmission', 'vacuum', 'reflective', 'periodic', 'white'}, optional
         Boundary condition that defines the behavior for particles hitting the
         surface. Defaults to transmissive boundary condition where particles
@@ -708,6 +743,8 @@ class Plane(PlaneMixin, Surface):
         The 'C' parameter for the plane
     d : float
         The 'D' parameter for the plane
+    e : float
+        The 'E' parameter for the plane
     boundary_type : {'transmission', 'vacuum', 'reflective', 'periodic', 'white'}
         Boundary condition that defines the behavior for particles hitting the
         surface.
@@ -728,9 +765,9 @@ class Plane(PlaneMixin, Surface):
     """
 
     _type = 'plane'
-    _coeff_keys = ('a', 'b', 'c', 'd')
+    _coeff_keys = ('a', 'b', 'c', 'd', 'e')
 
-    def __init__(self, a=1., b=0., c=0., d=0., *args, **kwargs):
+    def __init__(self, a=1., b=0., c=0., d=0., e=0., *args, **kwargs):
         # *args should ultimately be limited to a, b, c, d as specified in
         # __init__, but to preserve the API it is allowed to accept Surface
         # parameters for now, but will raise warnings if this is done.
@@ -746,7 +783,7 @@ class Plane(PlaneMixin, Surface):
 
         super().__init__(**kwargs)
 
-        for key, val in zip(self._coeff_keys, (a, b, c, d)):
+        for key, val in zip(self._coeff_keys, (a, b, c, d, e)):
             setattr(self, key, val)
 
         for key, val in capdict.items():
@@ -754,7 +791,7 @@ class Plane(PlaneMixin, Surface):
 
     @classmethod
     def __subclasshook__(cls, c):
-        if cls is Plane and c in (XPlane, YPlane, ZPlane):
+        if cls is Plane and c in (XPlane, YPlane, ZPlane, TPlane):
             return True
         return NotImplemented
 
@@ -762,6 +799,7 @@ class Plane(PlaneMixin, Surface):
     b = SurfaceCoefficient('b')
     c = SurfaceCoefficient('c')
     d = SurfaceCoefficient('d')
+    e = SurfaceCoefficient('e')
 
     @classmethod
     def from_points(cls, p1, p2, p3, **kwargs):
@@ -802,7 +840,8 @@ class Plane(PlaneMixin, Surface):
         # coefficients a, b, c, and d based on that
         a, b, c = n
         d = np.dot(n, p1)
-        return cls(a=a, b=b, c=c, d=d, **kwargs)
+        e = 0.
+        return cls(a=a, b=b, c=c, d=d, e=e, **kwargs)
 
     def flip_normal(self):
         """Modify plane coefficients to reverse the normal vector."""
@@ -810,6 +849,7 @@ class Plane(PlaneMixin, Surface):
         self.b = -self.b
         self.c = -self.c
         self.d = -self.d
+        self.e = -self.e
 
 
 class XPlane(PlaneMixin, Surface):
@@ -872,6 +912,7 @@ class XPlane(PlaneMixin, Surface):
     b = SurfaceCoefficient(0.)
     c = SurfaceCoefficient(0.)
     d = x0
+    e = SurfaceCoefficient(0.)
 
     def evaluate(self, point):
         return point[0] - self.x0
@@ -937,6 +978,7 @@ class YPlane(PlaneMixin, Surface):
     b = SurfaceCoefficient(1.)
     c = SurfaceCoefficient(0.)
     d = y0
+    e = SurfaceCoefficient(0.)
 
     def evaluate(self, point):
         return point[1] - self.y0
@@ -1002,9 +1044,75 @@ class ZPlane(PlaneMixin, Surface):
     b = SurfaceCoefficient(0.)
     c = SurfaceCoefficient(1.)
     d = z0
+    e = SurfaceCoefficient(0.)
 
     def evaluate(self, point):
         return point[2] - self.z0
+
+class TPlane(PlaneMixin, Surface):
+    """A plane perpendicular to the z axis of the form :math:`t - t_0 = 0`
+
+    Parameters
+    ----------
+    t0 : float, optional
+        Location of the plane in [μs]. Defaults to 0.
+    boundary_type : {'transmission', 'vacuum', 'reflective', 'periodic', 'white'}, optional
+        Boundary condition that defines the behavior for particles hitting the
+        surface. Defaults to transmissive boundary condition where particles
+        freely pass through the surface. Only axis-aligned periodicity is
+        supported, i.e., t-planes can only be paired with z-planes.
+    albedo : float, optional
+        Albedo of the surfaces as a ratio of particle weight after interaction
+        with the surface to the initial weight. Values must be positive. Only
+        applicable if the boundary type is 'reflective', 'periodic', or 'white'.
+    name : str, optional
+        Name of the plane. If not specified, the name will be the empty string.
+    surface_id : int, optional
+        Unique identifier for the surface. If not specified, an identifier will
+        automatically be assigned.
+
+    Attributes
+    ----------
+    t0 : float
+        Location of the plane in [μs]
+    boundary_type : {'transmission', 'vacuum', 'reflective', 'periodic', 'white'}
+        Boundary condition that defines the behavior for particles hitting the
+        surface.
+    albedo : float
+        Boundary albedo as a positive multiplier of particle weight
+    periodic_surface : openmc.Surface
+        If a periodic boundary condition is used, the surface with which this
+        one is periodic with
+    coefficients : dict
+        Dictionary of surface coefficients
+    id : int
+        Unique identifier for the surface
+    name : str
+        Name of the surface
+    type : str
+        Type of the surface
+
+    """
+
+    _type = 't-plane'
+    _coeff_keys = ('t0',)
+
+    def __init__(self, t0=0., *args, **kwargs):
+        # work around for accepting Surface kwargs as positional parameters
+        # until they are deprecated
+        kwargs = _future_kwargs_warning_helper(type(self), *args, **kwargs)
+        super().__init__(**kwargs)
+        self.t0 = t0
+
+    t0 = SurfaceCoefficient('t0')
+    a = SurfaceCoefficient(0.)
+    b = SurfaceCoefficient(0.)
+    c = SurfaceCoefficient(0.)
+    d = t0
+    e = SurfaceCoefficient(1.)
+
+    def evaluate(self, point):
+        return point[3] - self.t0
 
 
 class QuadricMixin:
@@ -1066,8 +1174,8 @@ class QuadricMixin:
 
         Parameters
         ----------
-        point : 3-tuple of float
-            The Cartesian coordinates, :math:`(x',y',z')`, in [cm] at which the
+        point : 3- or 4- tuple of float
+            The Cartesian coordinates, :math:`(x',y',z',(t'))`, in [cm, μs] at which the
             surface equation should be evaluated.
 
         Returns
@@ -1077,9 +1185,15 @@ class QuadricMixin:
             Jz' + K = 0`
 
         """
-        x = np.asarray(point)
+        if len(point) == 4:
+            x = np.asarray(point[:4])
+        else:
+            x = np.asarray(point)
         A, b, c = self.get_Abc()
         return x.T @ A @ x + b.T @ x + c
+
+    def _get_dimension(self):
+        return 3
 
     def translate(self, vector, inplace=False):
         """Translate surface in given direction
@@ -1447,8 +1561,8 @@ class XCylinder(QuadricMixin, Surface):
     def bounding_box(self, side):
         if side == '-':
             return BoundingBox(
-                np.array([-np.inf, self.y0 - self.r, self.z0 - self.r]),
-                np.array([np.inf, self.y0 + self.r, self.z0 + self.r])
+                np.array([-np.inf, self.y0 - self.r, self.z0 - self.r, -np.inf]),
+                np.array([np.inf, self.y0 + self.r, self.z0 + self.r, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -1545,8 +1659,8 @@ class YCylinder(QuadricMixin, Surface):
     def bounding_box(self, side):
         if side == '-':
             return BoundingBox(
-                np.array([self.x0 - self.r, -np.inf, self.z0 - self.r]),
-                np.array([self.x0 + self.r, np.inf, self.z0 + self.r])
+                np.array([self.x0 - self.r, -np.inf, self.z0 - self.r, -np.inf]),
+                np.array([self.x0 + self.r, np.inf, self.z0 + self.r, +np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -1643,8 +1757,8 @@ class ZCylinder(QuadricMixin, Surface):
     def bounding_box(self, side):
         if side == '-':
             return BoundingBox(
-                np.array([self.x0 - self.r, self.y0 - self.r, -np.inf]),
-                np.array([self.x0 + self.r, self.y0 + self.r, np.inf])
+                np.array([self.x0 - self.r, self.y0 - self.r, -np.inf, -np.inf]),
+                np.array([self.x0 + self.r, self.y0 + self.r, np.inf, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -1740,8 +1854,8 @@ class Sphere(QuadricMixin, Surface):
     def bounding_box(self, side):
         if side == '-':
             return BoundingBox(
-                np.array([self.x0 - self.r, self.y0 - self.r, self.z0 - self.r]),
-                np.array([self.x0 + self.r, self.y0 + self.r, self.z0 + self.r])
+                np.array([self.x0 - self.r, self.y0 - self.r, self.z0 - self.r, -np.inf]),
+                np.array([self.x0 + self.r, self.y0 + self.r, self.z0 + self.r, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -2355,6 +2469,9 @@ class TorusMixin:
     def _get_base_coeffs(self):
         raise NotImplementedError
 
+    def _get_dimension(self):
+        return 3
+
 
 class XTorus(TorusMixin, Surface):
     r"""A torus of the form :math:`(x - x_0)^2/B^2 + (\sqrt{(y - y_0)^2 + (z -
@@ -2424,8 +2541,8 @@ class XTorus(TorusMixin, Surface):
         a, b, c = self.a, self.b, self.c
         if side == '-':
             return BoundingBox(
-                np.array([x0 - b, y0 - a - c, z0 - a - c]),
-                np.array([x0 + b, y0 + a + c, z0 + a + c])
+                np.array([x0 - b, y0 - a - c, z0 - a - c, -np.inf]),
+                np.array([x0 + b, y0 + a + c, z0 + a + c, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -2499,8 +2616,8 @@ class YTorus(TorusMixin, Surface):
         a, b, c = self.a, self.b, self.c
         if side == '-':
             return BoundingBox(
-                np.array([x0 - a - c, y0 - b, z0 - a - c]),
-                np.array([x0 + a + c, y0 + b, z0 + a + c])
+                np.array([x0 - a - c, y0 - b, z0 - a - c, -np.inf]),
+                np.array([x0 + a + c, y0 + b, z0 + a + c, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -2574,8 +2691,8 @@ class ZTorus(TorusMixin, Surface):
         a, b, c = self.a, self.b, self.c
         if side == '-':
             return BoundingBox(
-                np.array([x0 - a - c, y0 - a - c, z0 - b]),
-                np.array([x0 + a + c, y0 + a + c, z0 + b])
+                np.array([x0 - a - c, y0 - a - c, z0 - b, -np.inf]),
+                np.array([x0 + a + c, y0 + a + c, z0 + b, np.inf])
             )
         elif side == '+':
             return BoundingBox.infinite()
@@ -2615,6 +2732,9 @@ class Halfspace(Region):
         Indicates whether the positive or negative half-space is used.
     bounding_box : openmc.BoundingBox
         Lower-left and upper-right coordinates of an axis-aligned bounding box
+    dimension : int
+        Dimension of the Euclidian geometry spanned by the half-space (3 or 4)
+
 
     """
 
@@ -2642,8 +2762,9 @@ class Halfspace(Region):
 
         Parameters
         ----------
-        point : 3-tuple of float
-            Cartesian coordinates, :math:`(x',y',z')`, of the point
+        point : 3- or 4-tuple of float
+            Cartesian coordinates, :math:`(x',y',z',(t'))`, of the point
+
 
         Returns
         -------
@@ -2676,6 +2797,10 @@ class Halfspace(Region):
     @property
     def bounding_box(self):
         return self.surface.bounding_box(self.side)
+
+    @property
+    def dimension(self):
+        return self.surface.dimension
 
     def __str__(self):
         return '-' + str(self.surface.id) if self.side == '-' \
@@ -2828,6 +2953,7 @@ Plane._virtual_base = Plane
 XPlane._virtual_base = Plane
 YPlane._virtual_base = Plane
 ZPlane._virtual_base = Plane
+TPlane._virtual_base = Plane
 Cylinder._virtual_base = Cylinder
 XCylinder._virtual_base = Cylinder
 YCylinder._virtual_base = Cylinder

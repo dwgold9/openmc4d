@@ -29,6 +29,8 @@ class Geometry:
     bounding_box : openmc.BoundingBox
         Lower-left and upper-right coordinates of an axis-aligned bounding box
         of the universe.
+    dimension : int
+        Dimension of the Euclidian space spanned by the universe (3 or 4)
     merge_surfaces : bool
         Whether to remove redundant surfaces when the geometry is exported.
     surface_precision : int
@@ -68,6 +70,10 @@ class Geometry:
     @property
     def bounding_box(self) -> openmc.BoundingBox:
         return self.root_universe.bounding_box
+ 
+    @property
+    def dimension(self):
+        return self.root_universe.dimension
 
     @property
     def merge_surfaces(self) -> bool:
@@ -301,7 +307,7 @@ class Geometry:
 
         Parameters
         ----------
-        point : 3-tuple of float
+        point : 3/4-tuple of float
             Cartesian coordinates of the point
 
         Returns

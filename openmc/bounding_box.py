@@ -14,30 +14,37 @@ class BoundingBox:
     Parameters
     ----------
     lower_left : iterable of float
-        The x, y, z coordinates of the lower left corner of the bounding box in [cm]
+        The x, y, z, t coordinates of the lower left corner of the bounding box in [cm, cm, cm, μs]
     upper_right : iterable of float
-        The x, y, z coordinates of the upper right corner of the bounding box in [cm]
+        The x, y, z, t coordinates of the upper right corner of the bounding box in [cm, cm, cm, μs]
 
     Attributes
     ----------
     center : numpy.ndarray
-        x, y, z coordinates of the center of the bounding box in [cm]
+        x, y, z, t coordinates of the center of the bounding box in [cm, cm, cm, μs]
     lower_left : numpy.ndarray
-        The x, y, z coordinates of the lower left corner of the bounding box in [cm]
+        The x, y, z, t coordinates of the lower left corner of the bounding box in [cm, cm, cm, μs]
     upper_right : numpy.ndarray
-        The x, y, z coordinates of the upper right corner of the bounding box in [cm]
+        The x, y, z, t coordinates of the upper right corner of the bounding box in [cm, cm, cm, μs]
     volume : float
-        The volume of the bounding box in [cm^3]
+        The volume of the bounding box in [cm^3 μs]
     extent : dict
         A dictionary of basis as keys and the extent (left, right, bottom, top)
         as values. Intended use in Matplotlib plots when setting extent
     width : iterable of float
-        The width of the x, y and z axis in [cm]
+        The width of the x, y, z and t axis in [cm, cm, cm, μs]
     """
 
     def __init__(self, lower_left: Iterable[float], upper_right: Iterable[float]):
-        check_length("lower_left", lower_left, 3, 3)
-        check_length("upper_right", upper_right, 3, 3)
+        check_length("lower_left", lower_left, 3, 4)
+        check_length("upper_left", upper_right, 3, 4)
+        if len(lower_left) == 3:
+            check_length("upper_right", upper_right, 3, 3)
+            self._dimension = 3
+        if len(lower_left) == 4:
+            check_length("upper_right", upper_right, 4, 4)
+            self._dimension = 4
+
         self._bounds = np.asarray([lower_left, upper_right], dtype=float)
 
     def __repr__(self) -> str:
@@ -104,7 +111,10 @@ class BoundingBox:
         # test for a single point
         if isinstance(other, (tuple, list, np.ndarray)):
             point = other
-            check_length("Point", point, 3, 3)
+            if self.dimension == 3:
+                check_length("Point", point, 3, 3)
+            else:
+                check_length("Point", point, 4, 4)
             return all(point > self.lower_left) and all(point < self.upper_right)
         elif isinstance(other, BoundingBox):
             return all([p in self for p in [other.lower_left, other.upper_right]])
@@ -124,7 +134,10 @@ class BoundingBox:
 
     @lower_left.setter
     def lower_left(self, llc):
-        check_length('lower_left', llc, 3, 3)
+        if self.dimension == 3:
+            check_length('lower_left', llc, 3, 3)
+        if self.dimension == 4:
+            check_length('lower_left', llc, 4, 4)
         self[0] = llc
 
     @property
@@ -133,7 +146,10 @@ class BoundingBox:
 
     @upper_right.setter
     def upper_right(self, urc):
-        check_length('upper_right', urc, 3, 3)
+        if self.dimension == 3:
+            check_length('upper_right', urc, 3, 3)
+        if self.dimension == 4:
+            check_length('upper_right', urc, 4, 4)
         self[1] = urc
 
     @property
@@ -142,26 +158,70 @@ class BoundingBox:
 
     @property
     def extent(self):
-        return {
-            "xy": (
-                self.lower_left[0],
-                self.upper_right[0],
-                self.lower_left[1],
-                self.upper_right[1],
-            ),
-            "xz": (
-                self.lower_left[0],
-                self.upper_right[0],
-                self.lower_left[2],
-                self.upper_right[2],
-            ),
-            "yz": (
-                self.lower_left[1],
-                self.upper_right[1],
-                self.lower_left[2],
-                self.upper_right[2],
-            ),
-        }
+        if self.dimension == 3:
+            return {
+                "xy": (
+                    self.lower_left[0],
+                    self.upper_right[0],
+                    self.lower_left[1],
+                    self.upper_right[1],
+                ),
+                "xz": (
+                    self.lower_left[0],
+                    self.upper_right[0],
+                    self.lower_left[2],
+                    self.upper_right[2],
+                ),
+                "yz": (
+                    self.lower_left[1],
+                    self.upper_right[1],
+                    self.lower_left[2],
+                    self.upper_right[2],
+                ),
+            }
+        if self.dimension == 4:
+            return {
+                "xy": (
+                    self.lower_left[0],
+                    self.upper_right[0],
+                    self.lower_left[1],
+                    self.upper_right[1],
+                ),
+                "xz": (
+                    self.lower_left[0],
+                    self.upper_right[0],
+                    self.lower_left[2],
+                    self.upper_right[2],
+                ),
+                "xt": (
+                    self.lower_left[0],
+                    self.upper_right[0],
+                    self.lower_left[3],
+                    self.upper_right[3],
+                ),
+                "yz": (
+                    self.lower_left[1],
+                    self.upper_right[1],
+                    self.lower_left[2],
+                    self.upper_right[2],
+                ),
+                "yt": (
+                    self.lower_left[1],
+                    self.upper_right[1],
+                    self.lower_left[3],
+                    self.upper_right[3],
+                ),
+                "zt": (
+                    self.lower_left[2],
+                    self.upper_right[2],
+                    self.lower_left[3],
+                    self.upper_right[3],
+                ),
+            }
+
+    @property
+    def dimension(self):
+        return self._dimension
 
     @property
     def width(self):
@@ -190,13 +250,17 @@ class BoundingBox:
             return BoundingBox(self[0] - padding_distance, self[1] + padding_distance)
 
     @classmethod
-    def infinite(cls) -> BoundingBox:
+    def infinite(cls, dimension=3) -> BoundingBox:
         """Create an infinite box. Useful as a starting point for determining
            geometry bounds.
+        dimension: the Euclidian dimension of the BoundingBox instance, is either 3 or 4.
 
         Returns
         -------
         An infinitely large bounding box.
         """
-        infs = np.full((3,), np.inf)
+        if dimension == 3:
+            infs = np.full((3,), np.inf)
+        if dimension == 4:
+            infs = np.full((4,), np.inf)
         return cls(-infs, infs)
