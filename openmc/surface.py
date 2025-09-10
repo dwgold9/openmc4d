@@ -1050,7 +1050,7 @@ class ZPlane(PlaneMixin, Surface):
         return point[2] - self.z0
 
 class TPlane(PlaneMixin, Surface):
-    """A plane perpendicular to the z axis of the form :math:`t - t_0 = 0`
+    """A plane perpendicular to the t axis of the form :math:`t - t_0 = 0`
 
     Parameters
     ----------
