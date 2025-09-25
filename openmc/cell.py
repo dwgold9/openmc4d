@@ -568,6 +568,9 @@ class Cell(IDManagerMixin):
             memo[self] = clone
 
         return memo[self]
+    
+    def move(self, velocity=None, acceleration=None):
+        self.region.motion(velocity, acceleration)
 
     @add_plot_params
     def plot(self, *args, **kwargs):
