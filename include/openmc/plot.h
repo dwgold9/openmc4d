@@ -164,13 +164,13 @@ public:
   template<class T>
   T get_map() const;
 
-  enum class PlotBasis { xy = 1, xz = 2, yz = 3 };
+  enum class PlotBasis { xy = 1, xz = 2, yz = 3, xt = 4, yt = 5, zt = 6};
 
   // Members
 public:
   Position origin_;           //!< Plot origin in geometry
   Position width_;            //!< Plot width in geometry
-  PlotBasis basis_;           //!< Plot basis (XY/XZ/YZ)
+  PlotBasis basis_;           //!< Plot basis (XY/XZ/YZ/XT,YT,ZT)
   array<size_t, 3> pixels_;   //!< Plot size in pixels
   bool slice_color_overlaps_; //!< Show overlapping cells?
   int slice_level_ {-1};      //!< Plot universe level
@@ -193,7 +193,7 @@ T SlicePlotBase::get_map() const
 
   // setup basis indices and initial position centered on pixel
   int in_i, out_i;
-  Position xyz = origin_;
+  Position xyzt = origin_;
   switch (basis_) {
   case PlotBasis::xy:
     in_i = 0;
@@ -207,21 +207,33 @@ T SlicePlotBase::get_map() const
     in_i = 1;
     out_i = 2;
     break;
+  case PlotBasis::xt:
+    in_i = 3;
+    out_i = 0;
+    break;
+  case PlotBasis::yt:
+    in_i = 3;
+    out_i = 1;
+    break;
+  case PlotBasis::zt:
+    in_i = 3;
+    out_i = 2;
+    break;
   default:
     UNREACHABLE();
   }
 
   // set initial position
-  xyz[in_i] = origin_[in_i] - width_[0] / 2. + in_pixel / 2.;
-  xyz[out_i] = origin_[out_i] + width_[1] / 2. - out_pixel / 2.;
+  xyzt[in_i] = origin_[in_i] - width_[0] / 2. + in_pixel / 2.;
+  xyzt[out_i] = origin_[out_i] + width_[1] / 2. - out_pixel / 2.;
 
   // arbitrary direction
-  Direction dir = {1. / std::sqrt(2.), 1. / std::sqrt(2.), 0.0};
+  Direction dir = {1. / std::sqrt(2.), 1. / std::sqrt(2.), 0.0, 0.0};
 
 #pragma omp parallel
   {
     GeometryState p;
-    p.r() = xyz;
+    p.r() = xyzt;
     p.u() = dir;
     p.coord(0).universe() = model::root_universe;
     int level = slice_level_;
@@ -229,9 +241,9 @@ T SlicePlotBase::get_map() const
 
 #pragma omp for
     for (int y = 0; y < height; y++) {
-      p.r()[out_i] = xyz[out_i] - out_pixel * y;
+      p.r()[out_i] = xyzt[out_i] - out_pixel * y;
       for (int x = 0; x < width; x++) {
-        p.r()[in_i] = xyz[in_i] + in_pixel * x;
+        p.r()[in_i] = xyzt[in_i] + in_pixel * x;
         p.n_coord() = 1;
         // local variables
         bool found_cell = exhaustive_find_cell(p);
@@ -343,7 +355,7 @@ private:
   Position camera_position_;               // where camera is
   Position look_at_; // point camera is centered looking at
 
-  Direction up_ {0.0, 0.0, 1.0}; // which way is up
+  Direction up_ {0.0, 0.0, 1.0, 0.0}; // which way is up
 
   /* The horizontal thickness, if using an orthographic projection.
    * If set to zero, we assume using a perspective projection.

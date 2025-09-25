@@ -152,6 +152,10 @@ class Model:
         return self.geometry.bounding_box
 
     @property
+    def dimension(self):
+        return self.geometry.dimension
+
+    @property
     def is_initialized(self) -> bool:
         try:
             import openmc.lib
@@ -916,13 +920,13 @@ class Model:
         pixels: int | Sequence[int],
         basis: str
     ):
-        x, y, _ = _BASIS_INDICES[basis]
+        x, y, _, _ = _BASIS_INDICES[basis]
 
         bb = self.bounding_box
         # checks to see if bounding box contains -inf or inf values
         if np.isinf(bb.extent[basis]).any():
             if origin is None:
-                origin = (0, 0, 0)
+                origin = (0, 0, 0, 0)
             if width is None:
                 width = (10, 10)
         else:
@@ -1024,6 +1028,7 @@ class Model:
         axes=None,
         legend: bool = False,
         axis_units: str = 'cm',
+        axis_tunit: str = 'μs',
         outline: bool | str = False,
         show_overlaps: bool = False,
         overlap_color: Sequence[int] | str | None = None,
@@ -1054,19 +1059,27 @@ class Model:
         source_kwargs.setdefault('marker', 'x')
 
         # Set indices using basis and create axis labels
-        x, y, z = _BASIS_INDICES[basis]
-        xlabel, ylabel = f'{basis[0]} [{axis_units}]', f'{basis[1]} [{axis_units}]'
+        x, y, z, t = _BASIS_INDICES[basis]
+        if x == 3:
+            xlabel, ylabel = f'{basis[1]} [{axis_tunit}]', f'{basis[0]} [{axis_units}]'
+        else:
+            xlabel, ylabel = f'{basis[0]} [{axis_units}]', f'{basis[1]} [{axis_units}]'
 
         # Determine extents of plot
         origin, width, pixels = self._set_plot_defaults(
             origin, width, pixels, basis)
 
-        axis_scaling_factor = {'km': 0.00001, 'm': 0.01, 'cm': 1, 'mm': 10}
+        axis_scaling_factor = {'km': 0.00001, 'm': 0.01, 'cm': 1, 'mm': 10,
+                               'μs': 1, 'ms': 0.001, 's': 0.000001}
 
-        x_min = (origin[x] - 0.5*width[0]) * axis_scaling_factor[axis_units]
-        x_max = (origin[x] + 0.5*width[0]) * axis_scaling_factor[axis_units]
-        y_min = (origin[y] - 0.5*width[1]) * axis_scaling_factor[axis_units]
-        y_max = (origin[y] + 0.5*width[1]) * axis_scaling_factor[axis_units]
+        axis_units_x = axis_units if x != 3 else axis_tunit
+        axis_units_y = axis_units if y != 3 else axis_tunit
+
+
+        x_min = (origin[x] - 0.5*width[0]) * axis_scaling_factor[axis_units_x]
+        x_max = (origin[x] + 0.5*width[0]) * axis_scaling_factor[axis_units_x]
+        y_min = (origin[y] - 0.5*width[1]) * axis_scaling_factor[axis_units_y]
+        y_max = (origin[y] + 0.5*width[1]) * axis_scaling_factor[axis_units_y]
 
         # Determine whether any materials contains macroscopic data and if so,
         # set energy mode accordingly
@@ -1193,12 +1206,14 @@ class Model:
             particles = self.sample_external_source(n_samples)
 
             # Get points within tolerance of the slice plane
-            slice_value = origin[z]
+            slice_value1 = origin[z]
+            slice_value2 = origin[t]
             xs = []
             ys = []
             tol = plane_tolerance
             for particle in particles:
-                if (slice_value - tol < particle.r[z] < slice_value + tol):
+                if (slice_value1 - tol < particle.r[z] < slice_value1 + tol) and \
+                    (slice_value2 - tol < particle.r[t] < slice_value2 + tol):
                     xs.append(particle.r[x])
                     ys.append(particle.r[y])
             axes.scatter(xs, ys, **source_kwargs)

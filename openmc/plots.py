@@ -16,7 +16,7 @@ from .mixin import IDManagerMixin
 _BASES = {'xy', 'xz', 'yz', 'xt', 'yt', 'zt'}
 
 _BASIS_INDICES = {'xy': (0, 1, 2, 3), 'xz': (0, 2, 1, 3), 'yz': (1, 2, 0, 3),
-                  'xt': (1, 2, 3, 0), 'yt': (2, 1, 3, 0),  'tz': (2, 3, 1, 0)}
+                  'xt': (3, 0, 1, 2), 'yt': (3, 1, 0, 2), 'tz': (3, 2, 0, 1)}
 
 _SVG_COLORS = {
     'aliceblue': (240, 248, 255),
@@ -710,7 +710,7 @@ class Plot(PlotBase):
         cv.check_type('plot origin', origin, Iterable, Real)
         cv.check_length('plot origin', origin, 3, 4)
         if len(origin) == 3:
-            self._origin = origin + [0]
+            self._origin = origin + tuple([0])
         else:
             self._origin = origin
 
@@ -810,6 +810,8 @@ class Plot(PlotBase):
         cv.check_type('geometry', geometry, openmc.Geometry)
         cv.check_value('basis', basis, _BASES)
 
+        geometric_dimension = geometry.dimension
+
         # Decide which axes to keep
         if basis == 'xy':
             pick_index = (0, 1)
@@ -823,15 +825,15 @@ class Plot(PlotBase):
             pick_index = (0, 2)
             slice_index = 1
             slice_index2 = 3
-        elif basis == 'xt' and dimension == 4:
+        elif basis == 'xt' and geometric_dimension == 4:
             pick_index = (3, 0)
             slice_index = 1
             slice_index2 = 2
-        elif basis == 'yt' and dimension == 4:
+        elif basis == 'yt' and geometric_dimension == 4:
             pick_index = (3, 1)
             slice_index = 0
             slice_index2 = 2
-        elif basis == 'zt' and dimension == 4:
+        elif basis == 'zt' and geometric_dimension == 4:
             pick_index = (3, 2)
             slice_index = 0
             slice_index2 = 1
@@ -846,7 +848,7 @@ class Plot(PlotBase):
                              f'in the {basis} plane.')
 
         plot = cls()
-        if dimension == 4:
+        if geometric_dimension == 4:
             plot.origin = np.insert(np.insert((lower_left + upper_right) / 2,
                                               slice_index, slice_coord), 
                                               slice_index2, slice_coord2)
