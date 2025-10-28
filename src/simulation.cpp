@@ -135,7 +135,6 @@ int openmc_simulation_init()
       initialize_source();
     }
   }
-
   // Display header
   if (mpi::master) {
     if (settings::run_mode == RunMode::FIXED_SOURCE) {
@@ -249,7 +248,6 @@ int openmc_next_batch(int* status)
 
     // Start timer for transport
     simulation::time_transport.start();
-
     // Transport loop
     if (settings::event_based) {
       transport_event_based();
@@ -786,6 +784,7 @@ void transport_history_based_single_particle(Particle& p)
 {
   while (p.alive()) {
     p.event_calculate_xs();
+    p.resynchronize4d();
     if (p.alive()) {
       p.event_advance();
     }

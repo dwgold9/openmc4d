@@ -157,7 +157,6 @@ void Particle::from_source(const SourceSite* src)
   E_last() = E();
   time() = src->time;
   time_last() = src->time;
-  resynchronize4d();
   parent_nuclide() = src->parent_nuclide;
 
   // Convert signed surface ID to signed index

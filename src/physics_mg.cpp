@@ -78,6 +78,7 @@ void sample_reaction(Particle& p)
       russian_roulette(p, settings::weight_survive);
     }
   }
+  p.resynchronize4d();
 }
 
 void scatter(Particle& p)
@@ -151,6 +152,7 @@ void create_fission_sites(Particle& p)
     site.u.x = mu;
     site.u.y = std::sqrt(1. - mu * mu) * std::cos(phi);
     site.u.z = std::sqrt(1. - mu * mu) * std::sin(phi);
+    site.u.t = p.u().t;
 
     // Sample secondary energy distribution for the fission reaction
     int dg;
