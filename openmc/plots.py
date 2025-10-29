@@ -16,7 +16,7 @@ from .mixin import IDManagerMixin
 _BASES = {'xy', 'xz', 'yz', 'xt', 'yt', 'zt'}
 
 _BASIS_INDICES = {'xy': (0, 1, 2, 3), 'xz': (0, 2, 1, 3), 'yz': (1, 2, 0, 3),
-                  'xt': (3, 0, 1, 2), 'yt': (3, 1, 0, 2), 'tz': (3, 2, 0, 1)}
+                  'xt': (3, 0, 1, 2), 'yt': (3, 1, 0, 2), 'zt': (3, 2, 0, 1)}
 
 _SVG_COLORS = {
     'aliceblue': (240, 248, 255),
