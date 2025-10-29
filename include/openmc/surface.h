@@ -325,8 +325,8 @@ public:
 //==============================================================================
 //! A general surface described by a quadratic equation.
 //
-//! \f$A x^2 + B y^2 + C z^2 + D x y + E y z + F x z + G x + H y + J z + K =
-//! 0\f$
+//! \f$A x^2 + B y^2 + C z^2 + D x y + E y z + F x z + G x + H y + J z + K + L
+//! t^2 + M x t + N y t + O z t + P t = 0\f$
 //==============================================================================
 
 class SurfaceQuadric : public Surface {
@@ -337,8 +337,9 @@ public:
   Direction normal(Position r) const override;
   void to_hdf5_inner(hid_t group_id) const override;
 
-  // Ax^2 + By^2 + Cz^2 + Dxy + Eyz + Fxz + Gx + Hy + Jz + K = 0
-  double A_, B_, C_, D_, E_, F_, G_, H_, J_, K_;
+  // Ax^2 + By^2 + Cz^2 + Dxy + Eyz + Fxz + Gx + Hy + Jz + K + Lt^2 + Mxt + 
+  // Nyt + Ozt + Pt = 0
+  double A_, B_, C_, D_, E_, F_, G_, H_, J_, K_, L_, M_, N_, O_, P_;
 };
 
 //==============================================================================

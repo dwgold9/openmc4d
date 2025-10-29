@@ -895,7 +895,8 @@ void SurfaceZCone::to_hdf5_inner(hid_t group_id) const
 SurfaceQuadric::SurfaceQuadric(pugi::xml_node surf_node) : Surface(surf_node)
 {
   read_coeffs(
-    surf_node, id_, {&A_, &B_, &C_, &D_, &E_, &F_, &G_, &H_, &J_, &K_});
+    surf_node, id_, {&A_, &B_, &C_, &D_, &E_, &F_, &G_, &H_, &J_, &K_,
+                     &L_, &M_, &N_, &O_, &P_});
 }
 
 double SurfaceQuadric::evaluate(Position r) const
@@ -903,8 +904,10 @@ double SurfaceQuadric::evaluate(Position r) const
   const double x = r.x;
   const double y = r.y;
   const double z = r.z;
+  const double t = r.t;
   return x * (A_ * x + D_ * y + G_) + y * (B_ * y + E_ * z + H_) +
-         z * (C_ * z + F_ * x + J_) + K_;
+         z * (C_ * z + F_ * x + J_) + K_ +
+         t * (L_ * t + M_ * x + N_ * y + O_ * z + P_);
 }
 
 double SurfaceQuadric::distance(
@@ -913,17 +916,21 @@ double SurfaceQuadric::distance(
   const double& x = r.x;
   const double& y = r.y;
   const double& z = r.z;
+  const double& t = r.t;
   const double& u = ang.x;
   const double& v = ang.y;
   const double& w = ang.z;
+  const double& s = ang.t;
 
   const double a =
-    A_ * u * u + B_ * v * v + C_ * w * w + D_ * u * v + E_ * v * w + F_ * u * w;
+    A_ * u * u + B_ * v * v + C_ * w * w + D_ * u * v + E_ * v * w + F_ * u * w + 
+    L_ * s * s + M_ * u * s + N_ * v * s + O_ * w * s;
   const double k = A_ * u * x + B_ * v * y + C_ * w * z +
                    0.5 * (D_ * (u * y + v * x) + E_ * (v * z + w * y) +
                            F_ * (w * x + u * z) + G_ * u + H_ * v + J_ * w);
   const double c = A_ * x * x + B_ * y * y + C_ * z * z + D_ * x * y +
-                   E_ * y * z + F_ * x * z + G_ * x + H_ * y + J_ * z + K_;
+                   E_ * y * z + F_ * x * z + G_ * x + H_ * y + J_ * z + K_ +
+                   L_ * t * t + M_ * x * t + N_ * y * t + O_ * z * t + P_ * t;
   double quad = k * k - a * c;
 
   double d;
@@ -983,18 +990,22 @@ Direction SurfaceQuadric::normal(Position r) const
   const double& x = r.x;
   const double& y = r.y;
   const double& z = r.z;
-  return {2.0 * A_ * x + D_ * y + F_ * z + G_,
-    2.0 * B_ * y + D_ * x + E_ * z + H_, 2.0 * C_ * z + E_ * y + F_ * x + J_};
+  const double& t = r.t;
+  return {2.0 * A_ * x + D_ * y + F_ * z + M_ * t + G_,
+    2.0 * B_ * y + D_ * x + E_ * z + N_ * t + H_, 
+    2.0 * C_ * z + E_ * y + F_ * x + O_ * t + J_,
+    2.0 * L_ * t + M_ * x + N_ * y + O_ * z + P_};
 }
 
 void SurfaceQuadric::to_hdf5_inner(hid_t group_id) const
 {
   write_string(group_id, "type", "quadric", false);
-  array<double, 10> coeffs {{A_, B_, C_, D_, E_, F_, G_, H_, J_, K_}};
+  array<double, 15> coeffs {{A_, B_, C_, D_, E_, F_, G_, H_, J_, K_,
+                             L_, M_, N_, O_, P_}};
   write_dataset(group_id, "coefficients", coeffs);
 }
 
-//==============================================================================
+//=============================================================================
 // Torus helper functions
 //==============================================================================
 

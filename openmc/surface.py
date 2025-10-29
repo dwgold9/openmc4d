@@ -1198,9 +1198,9 @@ class QuadricMixin:
             If none are supplied the coefficients of this surface will be used.
         """
         if coeffs is None:
-            a, b, c, d, e, f, g, h, j, k = self._get_base_coeffs()
+            a, b, c, d, e, f, g, h, j, k, l, m, n, o, p = self._get_base_coeffs()
         else:
-            a, b, c, d, e, f, g, h, j, k = coeffs
+            a, b, c, d, e, f, g, h, j, k, l, m, n, o, p = coeffs
 
         A = np.array([[a, d/2, f/2], [d/2, b, e/2], [f/2, e/2, c]])
         bvec = np.array([g, h, j])
@@ -1340,8 +1340,10 @@ class QuadricMixin:
             a, b, c = np.diagonal(Arot)
             d, e, f = 2*Arot[0, 1], 2*Arot[1, 2], 2*Arot[0, 2]
             g, h, j = Rmat @ bvec
+            l = m = n = o = p = 0.
 
-            for key, val in zip(surf._coeff_keys, (a, b, c, d, e, f, g, h, j, k)):
+            for key, val in zip(surf._coeff_keys, (a, b, c, d, e, f, g, h, j, k, 
+                                                   l, m, n, o, p)):
                 setattr(surf, key, val)
 
         # translate back to the original frame and return the surface
@@ -1483,8 +1485,9 @@ class Cylinder(QuadricMixin, Surface):
         h = 2*(cz*dx - cx*dz)
         j = 2*(cx*dy - cy*dx)
         k = cx*cx + cy*cy + cz*cz - (dx*dx + dy*dy + dz*dz)*r*r
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     @classmethod
     def from_points(cls, p1, p2, r=1., **kwargs):
@@ -1615,8 +1618,9 @@ class XCylinder(QuadricMixin, Surface):
         a = d = e = f = g = 0.
         b = c = 1.
         h, j, k = -2*y0, -2*z0, y0*y0 + z0*z0 - r*r
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def bounding_box(self, side):
         if side == '-':
@@ -1713,8 +1717,9 @@ class YCylinder(QuadricMixin, Surface):
         b = d = e = f = h = 0.
         a = c = 1.
         g, j, k = -2*x0, -2*z0, x0*x0 + z0*z0 - r*r
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, n, o, p)
 
     def bounding_box(self, side):
         if side == '-':
@@ -1811,8 +1816,9 @@ class ZCylinder(QuadricMixin, Surface):
         c = d = e = f = j = 0.
         a = b = 1.
         g, h, k = -2*x0, -2*y0, x0*x0 + y0*y0 - r*r
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def bounding_box(self, side):
         if side == '-':
@@ -1908,8 +1914,9 @@ class Sphere(QuadricMixin, Surface):
         d = e = f = 0.
         g, h, j = -2*x0, -2*y0, -2*z0
         k = x0*x0 + y0*y0 + z0*z0 - r*r
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def bounding_box(self, side):
         if side == '-':
@@ -2059,8 +2066,9 @@ class Cone(QuadricMixin, Surface):
         j = 2*(dz*(dx*x0 + dy*y0) - c*z0)
         k = a*x0*x0 + b*y0*y0 + c*z0*z0 - 2*(dx*dy*x0*y0 + dy*dz*y0*z0 +
                                              dx*dz*x0*z0)
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def to_xml_element(self):
         """Return XML representation of the surface
@@ -2175,8 +2183,9 @@ class XCone(QuadricMixin, Surface):
         d = e = f = 0.
         g, h, j = 2*x0*r2, -2*y0, -2*z0
         k = y0*y0 + z0*z0 - r2*x0*x0
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def evaluate(self, point):
         x = point[0] - self.x0
@@ -2277,8 +2286,9 @@ class YCone(QuadricMixin, Surface):
         d = e = f = 0.
         g, h, j = -2*x0, 2*y0*r2, -2*z0
         k = x0*x0 + z0*z0 - r2*y0*y0
+        l = m = n = o = p = 0.
 
-        return (a, b, c, d, e, f, g, h, j, k)
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def evaluate(self, point):
         x = point[0] - self.x0
@@ -2379,8 +2389,8 @@ class ZCone(QuadricMixin, Surface):
         d = e = f = 0.
         g, h, j = -2*x0, -2*y0, 2*z0*r2
         k = x0*x0 + y0*y0 - r2*z0*z0
-
-        return (a, b, c, d, e, f, g, h, j, k)
+        l = m = n = o = p = 0.
+        return (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)
 
     def evaluate(self, point):
         x = point[0] - self.x0
@@ -2432,14 +2442,16 @@ class Quadric(QuadricMixin, Surface):
     """
 
     _type = 'quadric'
-    _coeff_keys = ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k')
+    _coeff_keys = ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 
+                   'l', 'm', 'n', 'o', 'p')
 
     def __init__(self, a=0., b=0., c=0., d=0., e=0., f=0., g=0., h=0., j=0.,
-                 k=0., *args, **kwargs):
+                 k=0., l=0., m=0, n=0, o=0, p=0, *args, **kwargs):
         kwargs = _future_kwargs_warning_helper(type(self), *args, **kwargs)
         super().__init__(**kwargs)
 
-        for key, val in zip(self._coeff_keys, (a, b, c, d, e, f, g, h, j, k)):
+        for key, val in zip(self._coeff_keys, 
+                            (a, b, c, d, e, f, g, h, j, k, l, m, n, o, p)):
             setattr(self, key, val)
 
     a = SurfaceCoefficient('a')
@@ -2452,6 +2464,11 @@ class Quadric(QuadricMixin, Surface):
     h = SurfaceCoefficient('h')
     j = SurfaceCoefficient('j')
     k = SurfaceCoefficient('k')
+    l = SurfaceCoefficient('l')
+    m = SurfaceCoefficient('m')
+    n = SurfaceCoefficient('n')
+    o = SurfaceCoefficient('o')
+    p = SurfaceCoefficient('p')
 
     def _get_base_coeffs(self):
         return tuple(getattr(self, c) for c in self._coeff_keys)
