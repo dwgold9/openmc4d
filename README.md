@@ -38,7 +38,7 @@ openmc4d is a custom research fork of [OpenMC](https://github.com/openmc-dev/ope
 ### Build Instructions
 
 ```bash
-git clone https://github.com/dwgold9/openmc4d.git
+git clone -b dev https://github.com/dwgold9/openmc4d.git
 cd openmc4d
 mkdir build && cd build
 cmake ..
