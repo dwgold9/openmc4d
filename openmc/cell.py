@@ -5,6 +5,7 @@ from numbers import Real
 import lxml.etree as ET
 import numpy as np
 from uncertainties import UFloat
+from scipy.constants import speed_of_light
 
 import openmc
 import openmc.checkvalue as cv
@@ -72,6 +73,8 @@ class Cell(IDManagerMixin):
     temperature : float or iterable of float
         Temperature of the cell in Kelvin.  Multiple temperatures can be given
         to give each distributed cell instance a unique temperature.
+    material_velocity : Iterable of float
+        A vector to specify the comoving velocity of the cell's material.
     translation : Iterable of float
         If the cell is filled with a universe, this array specifies a vector
         that is used to translate (shift) the universe.
@@ -111,6 +114,7 @@ class Cell(IDManagerMixin):
         self._rotation = None
         self._rotation_matrix = None
         self._temperature = None
+        self._material_velocity = None
         self._translation = None
         self._paths = None
         self._num_instances = None
@@ -143,6 +147,9 @@ class Cell(IDManagerMixin):
         if self.fill_type == 'material':
             string += '\t{0: <15}=\t{1}\n'.format('Temperature',
                                                   self.temperature)
+        if self.fill_type == 'material':
+            string += '\t{0: <15}=\t{1}\n'.format('Material velocity',
+                                                  self.material_velocity)
         string += '{: <16}=\t{}\n'.format('\tTranslation', self.translation)
         string += '{: <16}=\t{}\n'.format('\tVolume', self.volume)
 
@@ -258,6 +265,32 @@ class Cell(IDManagerMixin):
                     c._temperature = temperature
         else:
             self._temperature = temperature
+             
+    @property
+    def material_velocity(self):
+        return self._material_velocity
+
+    @material_velocity.setter
+    def material_velocity(self, material_velocity):
+        cv.check_type('cell material velocity', material_velocity, Iterable, Real)
+        cv.check_length('cell material velocity', material_velocity, 3, 3)
+        if isinstance(material_velocity, Iterable):
+            cv.check_type('cell material velocity', material_velocity, Iterable, Real)
+            for mv in material_velocity:
+                cv.check_less_than('cell material velocity', np.linalg.norm(mv),
+                                   speed_of_light*100, True)
+        elif isinstance(material_velocity, Real):
+            cv.check_less_than('cell material velocity', np.linalg.norm(material_velocity),
+                               speed_of_light*100, True)
+
+        # If this cell is filled with a universe or lattice, propagate
+        # material velocity to all cells contained. Otherwise, simply assign it.
+        if self.fill_type in ('universe', 'lattice'):
+            for c in self.get_all_cells().values():
+                if c.fill_type == 'material':
+                    c._material_velocity = material_velocity
+        else:
+            self._material_velocity = material_velocity
 
     @property
     def translation(self):
@@ -534,6 +567,8 @@ class Cell(IDManagerMixin):
             clone.volume = self.volume
             if self.temperature is not None:
                 clone.temperature = self.temperature
+            if self.material_velocity is not None:
+                clone.material_velocity = self.material_velocity
             if self.translation is not None:
                 clone.translation = self.translation
             if self.rotation is not None:
@@ -662,6 +697,9 @@ class Cell(IDManagerMixin):
             else:
                 element.set("temperature", str(self.temperature))
 
+        if self.material_velocity is not None:
+            element.set("material_velocity", ' '.join(map(str, self.material_velocity)))
+
         if self.translation is not None:
             element.set("translation", ' '.join(map(str, self.translation)))
 
@@ -726,7 +764,7 @@ class Cell(IDManagerMixin):
         v = get_text(elem, 'volume')
         if v is not None:
             c.volume = float(v)
-        for key in ('temperature', 'rotation', 'translation'):
+        for key in ('temperature', 'rotation', 'translation', 'material_velocity'):
             values = get_elem_list(elem, key, float)
             if values is not None:
                 if key == 'rotation' and len(values) == 9:

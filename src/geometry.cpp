@@ -177,6 +177,8 @@ bool find_cell_inner(
       p.material() = c.material(p.cell_instance());
       p.sqrtkT_last() = p.sqrtkT();
       p.sqrtkT() = c.sqrtkT(p.cell_instance());
+      p.v_m_last() = p.v_m();
+      p.v_m() = c.v_m();  
 
       return true;
 

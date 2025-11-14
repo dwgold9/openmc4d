@@ -226,6 +226,22 @@ public:
   void set_temperature(
     double T, int32_t instance = -1, bool set_contained = false);
 
+    //! Get the material velocity of a cell instance
+  //! \param[in] instance Instance index. If -1 is given, the material velocity
+  //!   for the first instance is returned.
+  //! \return material velocity in [cm/s]
+  Position material_velocity(int32_t instance = -1) const;
+
+  //! Set the material velocity of a cell instance
+  //! \param[in] vel Material velocity in [cm/s]
+  //! \param[in] instance Instance index. If -1 is given, the material velocity
+  //!   for all instances is set.
+  //! \param[in] set_contained If this cell is not filled with a material,
+  //!   collect all contained cells with material fills and set their
+  //!   material velocities.
+  void set_material_velocity(
+    Position vel, int32_t instance = -1, bool set_contained = false);
+
   int32_t n_instances() const;
 
   //! Set the rotation matrix of a cell instance
@@ -285,6 +301,8 @@ public:
     }
   }
 
+  Position v_m() const { return v_m_;}
+
 protected:
   //! Determine the path to this cell instance in the geometry hierarchy
   //! \param[in] instance of the cell to find parent cells for
@@ -338,6 +356,8 @@ public:
   NeighborList neighbors_;
 
   Position translation_ {0, 0, 0}; //!< Translation vector for filled universe
+
+  Position v_m_ {0, 0, 0}; //!< Material velocity vector for filled universe
 
   //! \brief Rotational tranfsormation of the filled universe.
   //

@@ -389,6 +389,12 @@ public:
   const double& sqrtkT() const { return sqrtkT_; }
   double& sqrtkT_last() { return sqrtkT_last_; }
 
+  // material velocity of current and last cell
+  Position& v_m() { return v_m_; }
+  const Position& v_m() const { return v_m_; }
+  Position& v_m_last() { return v_m_last_; }
+
+
 private:
   int64_t id_ {-1}; //!< Unique ID
 
@@ -416,6 +422,9 @@ private:
 
   double sqrtkT_ {-1.0};     //!< sqrt(k_Boltzmann * temperature) in eV
   double sqrtkT_last_ {0.0}; //!< last temperature
+
+  Position v_m_ {0.0, 0.0, 0.0};     //!< material velocity in sqrt(eV)/AMU
+  Position v_m_last_ {0.0, 0.0, 0.0}; //!< last material_velocity
 
 #ifdef OPENMC_DAGMC_ENABLED
   moab::DagMC::RayHistory history_;

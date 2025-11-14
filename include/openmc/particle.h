@@ -40,6 +40,8 @@ public:
   double speed() const;
 
   void resynchronize4d();
+  
+  void transform_frame(int dir);
 
   //! create a secondary particle
   //

@@ -151,6 +151,41 @@ void Cell::set_temperature(double T, int32_t instance, bool set_contained)
   }
 }
 
+Position Cell::material_velocity(int32_t instance) const
+{
+   return v_m_;
+}
+
+void Cell::set_material_velocity(Position vel, int32_t instance, bool set_contained)
+{
+  if (type_ == Fill::MATERIAL) {
+    // Set material velocity for the corresponding instance
+    v_m_ = vel;
+  } else {
+    if (!set_contained) {
+      throw std::runtime_error {
+        fmt::format("Attempted to set the material velocity of cell {} "
+                    "which is not filled by a material.",
+          id_)};
+    }
+    if (vel.norm() > C_LIGHT){
+      throw std::runtime_error {
+        fmt::format("Material velocity speed of {} is above the speed "
+                    "of light.", vel.norm())};
+    }
+
+    auto contained_cells = this->get_contained_cells(instance);
+    for (const auto& entry : contained_cells) {
+      auto& cell = model::cells[entry.first];
+      assert(cell->type_ == Fill::MATERIAL);
+      auto& instances = entry.second;
+      for (auto instance : instances) {
+        cell->set_material_velocity(vel, instance);
+      }
+    }
+  }
+}
+
 void Cell::export_properties_hdf5(hid_t group) const
 {
   // Create a group for this cell.
@@ -226,6 +261,12 @@ void Cell::to_hdf5(hid_t cell_group) const
     for (auto sqrtkT_val : sqrtkT_)
       temps.push_back(sqrtkT_val * sqrtkT_val / K_BOLTZMANN);
     write_dataset(group, "temperature", temps);
+  
+    if (v_m_ != Position(0, 0, 0)) {
+      write_dataset(group, "material_velocity", v_m_ *
+        C_LIGHT / std::sqrt(MASS_NEUTRON_EV / 2));
+    }
+
 
   } else if (type_ == Fill::UNIVERSE) {
     write_dataset(group, "fill_type", "universe");
@@ -341,6 +382,30 @@ CSGCell::CSGCell(pugi::xml_node cell_node)
     // Convert to sqrt(k*T).
     for (auto& T : sqrtkT_) {
       T = std::sqrt(K_BOLTZMANN * T);
+    }
+  }
+
+  // Read the material velocity vector.
+  if (check_for_node(cell_node, "material_velocity")) {
+    auto uvw {get_node_array<double>(cell_node, "material_velocity")};
+
+    // Make sure this is a material-filled cell.
+    if (material_.size() == 0) {
+      fatal_error(fmt::format(
+        "Cell {} was specified with a material velocity but no material. Material"
+        "velocity specification is only valid for cells filled with a material.",
+        id_));
+    }
+
+    if (uvw.size() != 3) {
+      fatal_error(
+      fmt::format("Non-3D material_velocity vector applied to cell {}", id_));
+    }
+    v_m_ = uvw;
+    if (v_m_.norm() > C_LIGHT) {
+      fatal_error(fmt::format(
+        "Cell {} was specified with a material velocity greater "
+        "than the speed of light.", id_));
     }
   }
 
@@ -1140,6 +1205,42 @@ extern "C" int openmc_cell_get_temperature(
   int32_t instance_index = instance ? *instance : -1;
   try {
     *T = model::cells[index]->temperature(instance_index);
+  } catch (const std::exception& e) {
+    set_errmsg(e.what());
+    return OPENMC_E_UNASSIGNED;
+  }
+  return 0;
+}
+
+extern "C" int openmc_cell_set_material_velocity(
+  int32_t index, Position vel, const int32_t* instance, bool set_contained)
+{
+  if (index < 0 || index >= model::cells.size()) {
+    strcpy(openmc_err_msg, "Index in cells array is out of bounds.");
+    return OPENMC_E_OUT_OF_BOUNDS;
+  }
+
+  int32_t instance_index = instance ? *instance : -1;
+  try {
+    model::cells[index]->set_material_velocity(vel, instance_index, set_contained);
+  } catch (const std::exception& e) {
+    set_errmsg(e.what());
+    return OPENMC_E_UNASSIGNED;
+  }
+  return 0;
+}
+
+extern "C" int openmc_cell_get_material_velocity(
+  int32_t index, const int32_t* instance, Position* vel)
+{
+  if (index < 0 || index >= model::cells.size()) {
+    strcpy(openmc_err_msg, "Index in cells array is out of bounds.");
+    return OPENMC_E_OUT_OF_BOUNDS;
+  }
+
+  int32_t instance_index = instance ? *instance : -1;
+  try {
+    *vel = model::cells[index]->material_velocity(instance_index);
   } catch (const std::exception& e) {
     set_errmsg(e.what());
     return OPENMC_E_UNASSIGNED;
