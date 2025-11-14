@@ -41,7 +41,7 @@ openmc4d is a custom research fork of [OpenMC](https://github.com/openmc-dev/ope
 git clone https://github.com/dwgold9/openmc4d.git
 cd openmc4d
 mkdir build && cd build
-cmake .. -DOPENMC_ENABLE_4D=on
+cmake ..
 make -j4
 
 
