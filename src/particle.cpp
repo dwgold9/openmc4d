@@ -85,6 +85,32 @@ void Particle::resynchronize4d()
   }
 }
 
+void Particle::transform_frame(int dir)
+{
+  if (this->type() == ParticleType::photon){
+    return;
+  }
+  double mass;
+  switch (this->type()) {
+  case ParticleType::photon:
+    mass = 0;
+    break;
+  case ParticleType::neutron:
+    mass = MASS_NEUTRON_EV;
+    break;
+  case ParticleType::electron:
+  case ParticleType::positron:
+    mass = MASS_ELECTRON_EV;
+    break;
+  }
+  Position v = speed() * u();
+  auto vp = v + dir * v_m();
+
+  u() = vp / vp.norm();
+  E() = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
+  resynchronize4d();
+}
+
 bool Particle::create_secondary(
   double wgt, Direction u, double E, ParticleType type)
 {
@@ -239,9 +265,6 @@ void Particle::event_calculate_xs()
 
 void Particle::event_advance()
 {
-  // Find the distance to the nearest boundary
-  boundary() = distance_to_boundary(*this);
-
   // Sample a distance to collision
   if (type() == ParticleType::electron || type() == ParticleType::positron) {
     collision_distance() = 0.0;
@@ -251,7 +274,21 @@ void Particle::event_advance()
     collision_distance() = -std::log(prn(current_seed())) / macro_xs().total;
   }
 
+  auto v_m = this->v_m();
   double speed = this->speed();
+
+  // Comoving to lab frame transform of collision distance
+  double dscale = std::sqrt(1 + v_m.dot(v_m) / (speed * speed));
+  collision_distance() *= dscale;
+
+  // Transform particle to lab frame
+  if (settings::run_CE) {
+    transform_frame(1);
+  }
+  
+  // Find the distance to the nearest boundary
+  boundary() = distance_to_boundary(*this);
+
   double time_cutoff = settings::time_cutoff[static_cast<int>(type())];
   double distance_cutoff =
     (time_cutoff < INFTY) ? (time_cutoff - time()) * speed : INFTY;
@@ -261,10 +298,14 @@ void Particle::event_advance()
     std::min({boundary().distance(), collision_distance(), distance_cutoff});
 
   // Advance particle in space and time
+  // in the lab frame
   this->move_distance(distance);
   double dt = distance / speed;
   this->time() += dt;
   this->lifetime() += dt;
+
+  // Transform distance to comoving frame for tallying
+  distance /= dscale;
 
   // Score track-length tallies
   if (!model::active_tracklength_tallies.empty()) {
@@ -329,10 +370,19 @@ void Particle::event_cross_surface()
   if (!model::active_surface_tallies.empty()) {
     score_surface_tally(*this, model::active_surface_tallies);
   }
+  // Transform particle to comoving frame
+  if (settings::run_CE) {
+    transform_frame(-1);
+  }
 }
 
 void Particle::event_collide()
 {
+  // Transform particle to comoving frame
+  if (settings::run_CE) {
+    transform_frame(-1);
+  }
+
   // Score collision estimate of keff
   if (settings::run_mode == RunMode::EIGENVALUE &&
       type() == ParticleType::neutron) {
