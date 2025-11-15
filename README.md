@@ -28,7 +28,7 @@ openmc4d is a custom research fork of [OpenMC](https://github.com/openmc-dev/ope
 - Proof-of-principle studies in time-structured reactor design 
 - Investigation of reactivity boosts in depleted-uranium / heavy-water systems  
 - Exploration of dynamic isotope tailoring and spectral shaping  
-- Modeling of conceptual designs such as Floquet microreactors  
+- Modeling of conceptual designs such as moving moderator diodes 
 
 ## Getting Started
 
