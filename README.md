@@ -20,11 +20,8 @@ openmc4d is a custom research fork of [OpenMC](https://github.com/openmc-dev/ope
 - **Floquet / Periodic Analyses**  
   Tools for evaluating reactivity gain, α-eigenvalues, and mode structures in systems under periodic modulation.  
 
-- **Python and YAML Interface**  
-  Python bindings and YAML-driven inputs extend existing OpenMC workflows for defining 4D problems reproducibly.  
-
 - **Backward Compatibility**  
-  Standard 3D OpenMC simulations remain supported, with 4D functionality activated via the `OPENMC_ENABLE_4D` build option.  
+  Standard 3D OpenMC simulations remain supported, with 4D functionality achieved via OpenMC4d build option.  
 
 ## Research Applications
 
