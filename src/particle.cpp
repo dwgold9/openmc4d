@@ -261,6 +261,7 @@ void Particle::event_calculate_xs()
     macro_xs().fission = 0.0;
     macro_xs().nu_fission = 0.0;
   }
+  resynchronize4d();
 }
 
 void Particle::event_advance()

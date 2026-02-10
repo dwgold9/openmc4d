@@ -784,7 +784,6 @@ void transport_history_based_single_particle(Particle& p)
 {
   while (p.alive()) {
     p.event_calculate_xs();
-    p.resynchronize4d();
     if (p.alive()) {
       p.event_advance();
     }
