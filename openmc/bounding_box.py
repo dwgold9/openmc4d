@@ -250,7 +250,7 @@ class BoundingBox:
             return BoundingBox(self[0] - padding_distance, self[1] + padding_distance)
 
     @classmethod
-    def infinite(cls, dimension=3) -> BoundingBox:
+    def infinite(cls, dimension=4) -> BoundingBox:
         """Create an infinite box. Useful as a starting point for determining
            geometry bounds.
         dimension: the Euclidian dimension of the BoundingBox instance, is either 3 or 4.
