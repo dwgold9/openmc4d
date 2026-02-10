@@ -32,11 +32,11 @@ class Lattice(IDManagerMixin, ABC):
     name : str
         Name of the lattice
     pitch : Iterable of float
-        Pitch of the lattice in each direction in cm
+        Pitch of the lattice in each direction in cm, μs
     outer : openmc.UniverseBase
         A universe to fill all space outside the lattice
     universes : Iterable of Iterable of openmc.UniverseBase
-        A two-or three-dimensional list/array of universes filling each element
+        A two-, three-, our four-dimensional list/array of universes filling each element
         of the lattice
 
     """
@@ -260,15 +260,17 @@ class Lattice(IDManagerMixin, ABC):
         idx_u = self.get_universe_index(idx)
         if self.ndim == 2:
             return self.universes[idx_u[0]][idx_u[1]]
-        else:
+        elif self.ndim == 3:
             return self.universes[idx_u[0]][idx_u[1]][idx_u[2]]
+        else:
+            return self.universes[idx_u[0]][idx_u[1]][idx_u[2]][idx_u[3]]
 
     def find(self, point):
         """Find cells/universes/lattices which contain a given point
 
         Parameters
         ----------
-        point : 3-tuple of float
+        point : 3/4-tuple of float
             Cartesian coordinates of the point
 
         Returns
@@ -333,10 +335,14 @@ class Lattice(IDManagerMixin, ABC):
                         clone.universes[i[0]][i[1]] = \
                             self.universes[i[0]][i[1]].clone(clone_materials,
                                  clone_regions, memo)
-                    else:
+                    elif self.ndim == 3:
                         clone.universes[i[0]][i[1]][i[2]] = \
                             self.universes[i[0]][i[1]][i[2]].clone(
                             clone_materials, clone_regions, memo)
+                    else:
+                        clone.universes[i[0]][i[1]][i[2]][i[3]] = \
+                            self.universes[i[0]][i[1]][i[2]][i[3]].clone(
+                                clone_materials, clone_regions, memo)
 
             # Memoize the clone
             memo[self] = clone
@@ -354,8 +360,8 @@ class RectLattice(Lattice):
 
     Most methods for this class use a natural indexing scheme wherein elements
     are assigned an index corresponding to their position relative to the
-    (x,y,z) axes in a Cartesian coordinate system, i.e., an index of (0,0,0) in
-    the lattice gives the element whose x, y, and z coordinates are the
+    (x,y,z,t) axes in a Cartesian coordinate system, i.e., an index of (0,0,0,0) 
+    in the lattice gives the element whose x, y, z, and t coordinates are the
     smallest. However, note that when universes are assigned to lattice elements
     using the :attr:`RectLattice.universes` property, the array indices do not
     correspond to natural indices.
@@ -375,15 +381,16 @@ class RectLattice(Lattice):
     name : str
         Name of the lattice
     pitch : Iterable of float
-        Pitch of the lattice in the x, y, and (if applicable) z directions in
-        cm.
+        Pitch of the lattice in the x, y, (if applicable) z and t directions in
+        cm, μs.
     outer : openmc.UniverseBase
         A universe to fill all space outside the lattice
     universes : Iterable of Iterable of openmc.UniverseBase
-        A two- or three-dimensional list/array of universes filling each element
-        of the lattice. The first dimension corresponds to the z-direction (if
-        applicable), the second dimension corresponds to the y-direction, and
-        the third dimension corresponds to the x-direction. Note that for the
+        A two-,three-, or four-dimensional list/array of universes filling each element
+        of the lattice. The first dimension corresponds to the t-direction (if
+        applicable), the second dimension corresponds to the z-direction (if
+        applicable), the third dimension corresponds to the y-direction and
+        the fourth dimension corresponds to the x-direction. Note that for the
         y-direction, a higher index corresponds to a lower physical
         y-value. Each z-slice in the array can be thought of as a top-down view
         of the lattice.
@@ -392,14 +399,14 @@ class RectLattice(Lattice):
         the lattice is two-dimensional, only the x- and y-coordinates are
         specified.
     indices : list of tuple
-        A list of all possible (z,y,x) or (y,x) lattice element indices. These
+        A list of all possible (t,z,y,x), (z,y,x) or (y,x) lattice element indices. These
         indices correspond to indices in the :attr:`RectLattice.universes`
         property.
     ndim : int
         The number of dimensions of the lattice
     shape : Iterable of int
         An array of two or three integers representing the number of lattice
-        cells in the x- and y- (and z-) directions, respectively.
+        cells in the x- and y- (and z- and t-) directions, respectively.
 
     """
 
@@ -438,13 +445,19 @@ class RectLattice(Lattice):
         if self.ndim == 2:
             return list(np.broadcast(*np.ogrid[
                 :self.shape[1], :self.shape[0]]))
-        else:
+        elif self.ndim == 3:
             return list(np.broadcast(*np.ogrid[
                 :self.shape[2], :self.shape[1], :self.shape[0]]))
+        else:
+            return list(np.broadcast(*np.ogrid[
+                                      :self.shape[3], :self.shape[2], 
+                                      :self.shape[1], :self.shape[0]]))
+
 
     @property
     def _natural_indices(self):
-        """Iterate over all possible (x,y) or (x,y,z) lattice element indices.
+        """Iterate over all possible (x,y), (x,y,z), or (x,y,z,t) lattice 
+        element indices.
 
         This property is used when constructing distributed cell and material
         paths. Most importantly, the iteration order matches that used on the
@@ -456,12 +469,19 @@ class RectLattice(Lattice):
             for iy in range(ny):
                 for ix in range(nx):
                     yield (ix, iy)
-        else:
+        elif self.ndim == 3:
             nx, ny, nz = self.shape
             for iz in range(nz):
                 for iy in range(ny):
                     for ix in range(nx):
                         yield (ix, iy, iz)
+        else:
+            nx, ny, nz, nt = self.shape
+            for it in range(nt):
+                for iz in range(nz):
+                    for iy in range(ny):
+                        for ix in range(nx):
+                            yield (ix, iy, iz, it)
 
     @property
     def lower_left(self):
@@ -470,7 +490,7 @@ class RectLattice(Lattice):
     @lower_left.setter
     def lower_left(self, lower_left):
         cv.check_type('lattice lower left corner', lower_left, Iterable, Real)
-        cv.check_length('lattice lower left corner', lower_left, 2, 3)
+        cv.check_length('lattice lower left corner', lower_left, 2, 4)
         self._lower_left = lower_left
 
     @property
@@ -488,7 +508,7 @@ class RectLattice(Lattice):
     @Lattice.pitch.setter
     def pitch(self, pitch):
         cv.check_type('lattice pitch', pitch, Iterable, Real)
-        cv.check_length('lattice pitch', pitch, 2, 3)
+        cv.check_length('lattice pitch', pitch, 2, 4)
         for dim in pitch:
             cv.check_greater_than('lattice pitch', dim, 0.0)
         self._pitch = pitch
@@ -496,7 +516,7 @@ class RectLattice(Lattice):
     @Lattice.universes.setter
     def universes(self, universes):
         cv.check_iterable_type('lattice universes', universes, openmc.UniverseBase,
-                               min_depth=2, max_depth=3)
+                               min_depth=2, max_depth=4)
         self._universes = np.asarray(universes)
 
     def find_element(self, point):
@@ -509,10 +529,10 @@ class RectLattice(Lattice):
 
         Returns
         -------
-        2- or 3-tuple of int
-            A tuple of the corresponding (x,y,z) lattice element indices
-        3-tuple of float
-            Carestian coordinates of the point in the corresponding lattice
+        2-, 3-, or 4-tuple of int
+            A tuple of the corresponding (x,y,z,t) lattice element indices
+        3/4-tuple of float
+            Cartesian coordinates of the point in the corresponding lattice
             element coordinate system
 
         """
@@ -520,10 +540,15 @@ class RectLattice(Lattice):
         iy = floor((point[1] - self.lower_left[1])/self.pitch[1])
         if self.ndim == 2:
             idx = (ix, iy)
-        else:
+        elif self.ndim == 3:
             iz = floor((point[2] - self.lower_left[2])/self.pitch[2])
             idx = (ix, iy, iz)
+        else:
+            iz = floor((point[2] - self.lower_left[2]) / self.pitch[2])
+            it = floor((point[3] - self.lower_left[3])/self.pitch[3])
+            idx = (ix, iy, iz, it)
         return idx, self.get_local_coordinates(point, idx)
+
 
     def get_local_coordinates(self, point, idx):
         """Determine local coordinates of a point within a lattice element
@@ -533,12 +558,12 @@ class RectLattice(Lattice):
         point : Iterable of float
             Cartesian coordinates of point
         idx : Iterable of int
-            (x,y,z) indices of lattice element. If the lattice is 2D, the z
-            index can be omitted.
+            (x,y,z,t) indices of lattice element. If the lattice is 2D, the z
+            and t indices can be omitted.
 
         Returns
         -------
-        3-tuple of float
+        3/4-tuple of float
             Cartesian coordinates of point in the lattice element coordinate
             system
 
@@ -547,9 +572,13 @@ class RectLattice(Lattice):
         y = point[1] - (self.lower_left[1] + (idx[1] + 0.5)*self.pitch[1])
         if self.ndim == 2:
             z = point[2]
+        elif self.ndim == 3:
+            z = point[2] - (self.lower_left[2] + (idx[2] + 0.5)*self.pitch[2])
+            t = point[3]
         else:
             z = point[2] - (self.lower_left[2] + (idx[2] + 0.5)*self.pitch[2])
-        return (x, y, z)
+            t = point[3] - (self.lower_left[3] + (idx[3] + 0.5)*self.pitch[3])
+        return (x, y, z, t)
 
     def get_universe_index(self, idx):
         """Return index in the universes array corresponding
@@ -562,7 +591,7 @@ class RectLattice(Lattice):
 
         Returns
         -------
-        2- or 3-tuple of int
+        2-, 3-, or 4-tuple of int
             Indices used when setting the :attr:`RectLattice.universes` property
 
         """
@@ -570,9 +599,12 @@ class RectLattice(Lattice):
         if self.ndim == 2:
             x, y = idx
             return (max_y - y, x)
-        else:
+        elif self.ndim == 3:
             x, y, z = idx
             return (z, max_y - y, x)
+        else:
+            x, y, z, t = idx
+            return (t, z, max_y - y, x)
 
     def is_valid_index(self, idx):
         """Determine whether lattice element index is within defined range
@@ -580,7 +612,8 @@ class RectLattice(Lattice):
         Parameters
         ----------
         idx : Iterable of int
-            Lattice element indices in the :math:`(x,y,z)` coordinate system
+            Lattice element indices in the :math:`(x,y,z,t)` coordinate system
+
 
         Returns
         -------
@@ -591,10 +624,15 @@ class RectLattice(Lattice):
         if self.ndim == 2:
             return (0 <= idx[0] < self.shape[0] and
                     0 <= idx[1] < self.shape[1])
-        else:
+        elif self.ndim == 3:
             return (0 <= idx[0] < self.shape[0] and
                     0 <= idx[1] < self.shape[1] and
                     0 <= idx[2] < self.shape[2])
+        else:
+            return (0 <= idx[0] < self.shape[0] and
+                    0 <= idx[1] < self.shape[1] and
+                    0 <= idx[2] < self.shape[2] and
+                    0 <= idx[3] < self.shape[3])
 
     def discretize(self, strategy="degenerate",
                    universes_to_ignore=[],
@@ -895,8 +933,28 @@ class RectLattice(Lattice):
         # Export the Lattice nested Universe IDs
         universe_ids = '\n'
 
+        # 4D Lattices
+        if self.ndim == 4:
+            for t in range(self.shape[3]):
+                for z in range(self.shape[2]):
+                    for y in range(self.shape[1]):
+                        for x in range(self.shape[0]):
+                            universe = self._universes[t][z][y][x]
+
+                            # Append Universe ID to the Lattice XML subelement
+                            universe_ids += f'{universe._id} '
+
+                            # Create XML subelement for this Universe
+                            universe.create_xml_subelement(xml_element, memo)
+
+                        # Add newline character when we reach end of row of cells
+                        universe_ids += '\n'
+
+                    # Add newline character when we reach end of row of cells
+                    universe_ids += '\n'
+
         # 3D Lattices
-        if self.ndim == 3:
+        elif self.ndim == 3:
             for z in range(self.shape[2]):
                 for y in range(self.shape[1]):
                     for x in range(self.shape[0]):
@@ -1009,13 +1067,16 @@ class RectLattice(Lattice):
         if outer >= 0:
             lattice.outer = universes[outer]
 
-        # Build array of Universe pointers for the Lattice
-        uarray = np.empty(universe_ids.shape, dtype=openmc.UniverseBase)
+        for t in range(universe_ids.shape[0]):
+            for z in range(universe_ids.shape[1]):
+                for y in range(universe_ids.shape[2]):
+                    for x in range(universe_ids.shape[3]):
+                        uarray[z, y, x] = universes[universe_ids[t, z, y, x]]
 
-        for z in range(universe_ids.shape[0]):
-            for y in range(universe_ids.shape[1]):
-                for x in range(universe_ids.shape[2]):
-                    uarray[z, y, x] = universes[universe_ids[z, y, x]]
+        # Use 3D NumPy array to store lattice universes for 3D lattices
+        if len(dimension) == 3:
+            uarray = np.squeeze(uarray)
+            uarray = np.atleast_3d(uarray)
 
         # Use 2D NumPy array to store lattice universes for 2D lattices
         if len(dimension) == 2:
