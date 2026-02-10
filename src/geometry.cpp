@@ -428,7 +428,7 @@ BoundaryInfo distance_to_boundary(GeometryState& p)
           Position r_hit = r + d_surf * u;
           Surface& surf {*model::surfaces[std::abs(level_surf_cross) - 1]};
           Direction norm = surf.normal(r_hit);
-          if (u.dot(norm) > 0) {
+          if (u.dot4(norm) > 0) {
             info.surface() = std::abs(level_surf_cross);
           } else {
             info.surface() = -std::abs(level_surf_cross);

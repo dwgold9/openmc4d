@@ -124,7 +124,7 @@ bool Surface::sense(Position r, Direction u) const
     // Particle may be coincident with this surface. To determine the sense, we
     // look at the direction of the particle relative to the surface normal (by
     // default in the positive direction) via their dot product.
-    return u.dot(normal(r)) > 0.0;
+    return u.dot4(normal(r)) > 0.0;
   }
   return f > 0.0;
 }
@@ -1377,9 +1377,9 @@ void read_surfaces(pugi::xml_node node)
     // Compute the dot product of the surface normals
     Direction norm1 = surf1.normal({0, 0, 0});
     Direction norm2 = surf2.normal({0, 0, 0});
-    norm1 /= norm1.norm();
-    norm2 /= norm2.norm();
-    double dot_prod = norm1.dot(norm2);
+    norm1 /= norm1.norm4();
+    norm2 /= norm2.norm4();
+    double dot_prod = norm1.dot4(norm2);
 
     // If the dot product is 1 (to within floating point precision) then the
     // planes are parallel which indicates a translational periodic boundary
