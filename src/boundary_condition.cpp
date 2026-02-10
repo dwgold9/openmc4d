@@ -75,6 +75,7 @@ TranslationalPeriodicBC::TranslationalPeriodicBC(int i_surf, int j_surf)
   if (const auto* ptr = dynamic_cast<const SurfaceXPlane*>(&surf1)) {
   } else if (const auto* ptr = dynamic_cast<const SurfaceYPlane*>(&surf1)) {
   } else if (const auto* ptr = dynamic_cast<const SurfaceZPlane*>(&surf1)) {
+  } else if (const auto* ptr = dynamic_cast<const SurfaceTPlane*>(&surf1)) {
   } else if (const auto* ptr = dynamic_cast<const SurfacePlane*>(&surf1)) {
   } else {
     throw std::invalid_argument(fmt::format(
@@ -87,6 +88,7 @@ TranslationalPeriodicBC::TranslationalPeriodicBC(int i_surf, int j_surf)
   if (const auto* ptr = dynamic_cast<const SurfaceXPlane*>(&surf2)) {
   } else if (const auto* ptr = dynamic_cast<const SurfaceYPlane*>(&surf2)) {
   } else if (const auto* ptr = dynamic_cast<const SurfaceZPlane*>(&surf2)) {
+  } else if (const auto* ptr = dynamic_cast<const SurfaceTPlane*>(&surf2)) {
   } else if (const auto* ptr = dynamic_cast<const SurfacePlane*>(&surf2)) {
   } else {
     throw std::invalid_argument(fmt::format(
