@@ -1349,6 +1349,27 @@ class QuadricMixin:
         # translate back to the original frame and return the surface
         return surf.translate(pivot, inplace=inplace)
 
+    def motion(self, velocity, acceleration, inplace=False):
+        """Promote surface to swept hypersurface due to moving
+        surface with initial velocity and acceleration.
+
+        Parameters
+        ----------
+        velocity : iterable of float
+            Initial velocity vector of moving region, defined as v=[vx,vy,vz]
+        acceleration : iterable of float
+            Initial acceleration vector of moving region, defined as a=[ax,ay,az]
+        inplace : bool
+            Whether or not to return a new instance of a Plane or to modify the
+            coefficients of this plane.
+        
+        Returns
+        -------
+        openmc.Surface
+            Promoted moving surface    
+        """
+        raise NotImplemented
+
 
 class Cylinder(QuadricMixin, Surface):
     """A cylinder with radius r, centered on the point (x0, y0, z0) with an
