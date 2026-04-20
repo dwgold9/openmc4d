@@ -85,30 +85,77 @@ void Particle::resynchronize4d()
   }
 }
 
-void Particle::transform_frame(int dir)
+void Particle::transform_frame(ParticleFrame target)
 {
   if (this->type() == ParticleType::photon){
     return;
   }
+
+  if (target == frame()){
+    return;
+  }
+
+  if (v_m().norm() == 0){
+    return;
+  }
+
+  int dir = static_cast<int>(target);
+
   double mass;
   switch (this->type()) {
-  case ParticleType::photon:
-    mass = 0;
-    break;
   case ParticleType::neutron:
     mass = MASS_NEUTRON_EV;
     break;
+  case ParticleType::photon:
+    return;
   case ParticleType::electron:
   case ParticleType::positron:
     mass = MASS_ELECTRON_EV;
     break;
   }
+
   Position v = speed() * u();
   auto vp = v + dir * v_m();
 
-  u() = vp / vp.norm();
-  E() = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
+  // If material velocity and particle velocity are equivalent
+  // direction remains and energy becomes 0+. 
+  // Otherwise transform particle energy will be zero 
+  // and particle direction undefined.
+
+  // double Et = E() + dir * mass * v.dot(v_m()) / (C_LIGHT * C_LIGHT) 
+  //       + 0.5 * mass * v_m().dot(v_m()) / (C_LIGHT * C_LIGHT);
+
+  double Et = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
+  
+  if (Et > 0.0) {
+    u() = vp / vp.norm();
+    E() = Et;
+  } else {
+    u() = -v_m() / v_m().norm();
+    E() = MIN_ENERGY;
+  }
+  this->frame() = target;
   resynchronize4d();
+}
+
+double Particle::dscale()
+{
+
+  int s = - static_cast<int>(frame());
+
+  auto beta = v_m() / speed();
+
+  double dscale = std::sqrt(1 + 
+      beta.dot(beta) + s * 2 * beta.dot(u()));
+
+  if (frame() == ParticleFrame::lab){
+    dscale = 1 / dscale;
+  }
+
+  if (dscale > 0.0){
+    return dscale;
+  } else
+    return MIN_ENERGY;
 }
 
 bool Particle::create_secondary(
@@ -161,6 +208,7 @@ void Particle::from_source(const SourceSite* src)
   fission() = false;
   zero_flux_derivs();
   lifetime() = 0.0;
+  frame() = ParticleFrame::comoving;
 
   // Copy attributes from source bank site
   type() = src->particle;
@@ -275,18 +323,15 @@ void Particle::event_advance()
     collision_distance() = -std::log(prn(current_seed())) / macro_xs().total;
   }
 
-  auto v_m = this->v_m();
   double speed = this->speed();
-
-  // Comoving to lab frame transform of collision distance
-  double dscale = std::sqrt(1 + v_m.dot(v_m) / (speed * speed));
-  collision_distance() *= dscale;
 
   // Transform particle to lab frame
   if (settings::run_CE) {
-    transform_frame(1);
+    transform_frame(ParticleFrame::lab);
   }
-  
+
+  collision_distance() *= dscale();
+
   // Find the distance to the nearest boundary
   boundary() = distance_to_boundary(*this);
 
@@ -305,8 +350,8 @@ void Particle::event_advance()
   this->time() += dt;
   this->lifetime() += dt;
 
-  // Transform distance to comoving frame for tallying
-  distance /= dscale;
+  // Transform to comoving for tallying
+  distance /= dscale();
 
   // Score track-length tallies
   if (!model::active_tracklength_tallies.empty()) {
@@ -373,15 +418,15 @@ void Particle::event_cross_surface()
   }
   // Transform particle to comoving frame
   if (settings::run_CE) {
-    transform_frame(-1);
+    transform_frame(ParticleFrame::comoving);
   }
 }
 
 void Particle::event_collide()
 {
-  // Transform particle to comoving frame
+  // Transform particle to comoving framee
   if (settings::run_CE) {
-    transform_frame(-1);
+    transform_frame(ParticleFrame::comoving);
   }
 
   // Score collision estimate of keff
@@ -488,6 +533,7 @@ void Particle::event_revive_from_secondary()
     secondary_bank().pop_back();
     n_event() = 0;
     bank_second_E() = 0.0;
+    frame() = ParticleFrame::comoving;
 
     // Subtract secondary particle energy from interim pulse-height results
     if (!model::active_pulse_height_tallies.empty() &&

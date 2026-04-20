@@ -33,6 +33,9 @@ constexpr double CACHE_INVALID {-1.0};
 //! Particle types
 enum class ParticleType { neutron, photon, electron, positron };
 
+//! Particle coordinate frames
+enum class ParticleFrame { lab = 1, comoving = -1 };
+
 //! Saved ("banked") state of a particle
 //! NOTE: This structure's MPI type is built in initialize_mpi() of
 //! initialize.cpp. Any changes made to the struct here must also be
@@ -49,6 +52,7 @@ struct SourceSite {
   int delayed_group {0};
   int surf_id {SURFACE_NONE};
   ParticleType particle;
+  ParticleFrame frame {ParticleFrame::comoving};
 
   // Extra attributes that don't show up in source written to file
   int parent_nuclide {-1};
@@ -546,6 +550,8 @@ private:
 
   int64_t n_progeny_ {0};
 
+  ParticleFrame frame_ {ParticleFrame::comoving};
+
 public:
   //----------------------------------------------------------------------------
   // Constructors
@@ -575,6 +581,10 @@ public:
   // Particle type (n, p, e, gamma, etc)
   ParticleType& type() { return type_; }
   const ParticleType& type() const { return type_; }
+
+  // Particle type (n, p, e, gamma, etc)
+  ParticleFrame& frame() { return frame_; }
+  const ParticleFrame& frame() const { return frame_; }
 
   // Current particle energy, energy before collision,
   // and corresponding multigroup group indices. Energy

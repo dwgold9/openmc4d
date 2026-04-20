@@ -41,7 +41,9 @@ public:
 
   void resynchronize4d();
   
-  void transform_frame(int dir);
+  void transform_frame(ParticleFrame target);
+
+  double dscale();
 
   //! create a secondary particle
   //

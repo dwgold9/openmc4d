@@ -47,6 +47,9 @@ constexpr double CONFIDENCE_LEVEL {0.95};
 // Used for surface current tallies
 constexpr double TINY_BIT {1e-8};
 
+// Used for surface current tallies
+constexpr double MIN_ENERGY {1e-20};
+
 // User for precision in geometry
 constexpr double FP_PRECISION {1e-14};
 constexpr double FP_REL_PRECISION {1e-5};
