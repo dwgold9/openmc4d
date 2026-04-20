@@ -581,6 +581,15 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
 {
   Tally& tally {*model::tallies[i_tally]};
 
+  double sca;
+  if (tally.frame_ == TallyFrame::LAB){
+    sca = p.dscale();
+  } else {
+    sca = 1;
+  }
+
+  p.transform_frame(ParticleFrame::comoving);
+
   // Get the pre-collision energy of the particle.
   auto E = p.E_last();
 
@@ -593,7 +602,7 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
 
     switch (score_bin) {
     case SCORE_FLUX:
-      score = flux;
+      score = flux * sca;
       break;
 
     case SCORE_TOTAL:
@@ -1096,6 +1105,7 @@ void score_general_ce_nonanalog(Particle& p, int i_tally, int start_index,
     tally.results_(filter_index, score_index, TallyResult::VALUE) +=
       score * filter_weight;
   }
+  p.transform_frame(ParticleFrame::lab);
 }
 
 //! Update tally results for continuous-energy tallies with an analog estimator.
@@ -1109,6 +1119,15 @@ void score_general_ce_analog(Particle& p, int i_tally, int start_index,
   double flux)
 {
   Tally& tally {*model::tallies[i_tally]};
+
+  double sca;
+  if (tally.frame_ == TallyFrame::LAB){
+    sca = p.dscale();
+  } else {
+    sca = 1;
+  }
+  
+  p.transform_frame(ParticleFrame::comoving);
 
   // Get the pre-collision energy of the particle.
   auto E = p.E_last();
@@ -1133,7 +1152,7 @@ void score_general_ce_analog(Particle& p, int i_tally, int start_index,
       // in place of an analog one since there is no way to count 'events'
       // exactly for the flux
       if (p.type() == Type::neutron || p.type() == Type::photon) {
-        score = flux * p.wgt_last() / p.macro_xs().total;
+        score = flux * p.wgt_last() / p.macro_xs().total * sca;
       } else {
         score = 0.;
       }
@@ -1603,6 +1622,9 @@ void score_general_ce_analog(Particle& p, int i_tally, int start_index,
     tally.results_(filter_index, score_index, TallyResult::VALUE) +=
       score * filter_weight;
   }
+
+  p.transform_frame(ParticleFrame::lab);
+
 }
 
 //! Update tally results for multigroup tallies with any estimator.

@@ -376,6 +376,19 @@ Tally::Tally(pugi::xml_node node)
     }
   }
 
+  // Check if user specified frame
+  if (check_for_node(node, "frame")) {
+    std::string fra = get_node_value(node, "frame");
+    if (fra == "lab") {
+      frame_ = TallyFrame::LAB;
+    } else if (fra == "comoving") {
+      frame_ = TallyFrame::COMOVING;
+    } else {
+      throw std::runtime_error {
+        fmt::format("Invalid frame '{}' on tally {}", fra, id_)};
+    }
+  }
+
 #ifdef OPENMC_LIBMESH_ENABLED
   // ensure a tracklength tally isn't used with a libMesh filter
   for (auto i : this->filters_) {
@@ -1196,6 +1209,38 @@ extern "C" int openmc_tally_set_estimator(int32_t index, const char* estimator)
     t->estimator_ = TallyEstimator::COLLISION;
   } else if (est == "tracklength") {
     t->estimator_ = TallyEstimator::TRACKLENGTH;
+  } else {
+    set_errmsg("Unknown tally estimator: " + est);
+    return OPENMC_E_INVALID_ARGUMENT;
+  }
+  return 0;
+}
+
+extern "C" int openmc_tally_get_frame(int32_t index, int* frame)
+{
+  if (index < 0 || index >= model::tallies.size()) {
+    set_errmsg("Index in tallies array is out of bounds.");
+    return OPENMC_E_OUT_OF_BOUNDS;
+  }
+
+  *frame = static_cast<int>(model::tallies[index]->frame_);
+  return 0;
+}
+
+extern "C" int openmc_tally_set_frame(int32_t index, const char* frame)
+{
+  if (index < 0 || index >= model::tallies.size()) {
+    set_errmsg("Index in tallies array is out of bounds.");
+    return OPENMC_E_OUT_OF_BOUNDS;
+  }
+
+  auto& t {model::tallies[index]};
+
+  std::string est = frame;
+  if (est == "lab") {
+    t->frame_ = TallyFrame::LAB;
+  } else if (est == "comoving") {
+    t->frame_ = TallyFrame::COMOVING;
   } else {
     set_errmsg("Unknown tally estimator: " + est);
     return OPENMC_E_INVALID_ARGUMENT;

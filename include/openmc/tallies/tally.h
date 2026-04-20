@@ -143,6 +143,8 @@ public:
   //! Event type that contributes to this tally
   TallyEstimator estimator_ {TallyEstimator::TRACKLENGTH};
 
+  TallyFrame frame_ {TallyFrame::COMOVING}; //! e.g., lab, comoving
+
   //! Whether this tally is currently being updated
   bool active_ {false};
 

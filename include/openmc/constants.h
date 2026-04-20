@@ -295,6 +295,8 @@ enum class TallyType { VOLUME, MESH_SURFACE, SURFACE, PULSE_HEIGHT };
 
 enum class TallyEstimator { ANALOG, TRACKLENGTH, COLLISION };
 
+enum class TallyFrame { LAB, COMOVING };
+
 enum class TallyEvent { SURFACE, LATTICE, KILL, SCATTER, ABSORB };
 
 // Tally score type -- if you change these, make sure you also update the

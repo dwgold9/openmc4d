@@ -36,6 +36,9 @@ _FILTER_CLASSES = (openmc.Filter, openmc.CrossFilter, openmc.AggregateFilter)
 # Valid types of estimators
 ESTIMATOR_TYPES = {'tracklength', 'collision', 'analog'}
 
+# Valid types of frames
+ESTIMATOR_FRAMES = {'lab', 'comoving'}
+
 
 class Tally(IDManagerMixin):
     """A tally defined by a set of scores that are accumulated for a list of
@@ -69,6 +72,8 @@ class Tally(IDManagerMixin):
         Type of estimator for the tally. If unset (None), OpenMC will automatically
         select an appropriate estimator based on the tally filters and scores
         with a preference for 'tracklength'.
+    frame : {'lab', 'comoving'}
+        Type of frame for the tally. Default is 'lab'.
     triggers : list of openmc.Trigger
         List of tally triggers
     num_scores : int
@@ -120,6 +125,7 @@ class Tally(IDManagerMixin):
         self._nuclides = cv.CheckedList(_NUCLIDE_CLASSES, 'tally nuclides')
         self._scores = cv.CheckedList(_SCORE_CLASSES, 'tally scores')
         self._estimator = None
+        self._frame = 'lab'
         self._triggers = cv.CheckedList(openmc.Trigger, 'tally triggers')
         self._derivative = None
         self._multiply_density = True
@@ -181,6 +187,7 @@ class Tally(IDManagerMixin):
         parts.append('{: <15}=\t{}'.format('Nuclides', nuclides))
         parts.append('{: <15}=\t{}'.format('Scores', self.scores))
         parts.append('{: <15}=\t{}'.format('Estimator', self.estimator))
+        parts.append('{: <15}=\t{}'.format('Frame', self.frame))
         parts.append('{: <15}=\t{}'.format('Multiply dens.', self.multiply_density))
         return '\n\t'.join(parts)
 
@@ -327,6 +334,16 @@ class Tally(IDManagerMixin):
         # allow the estimator to be set to None (let OpenMC choose the estimator at runtime)
         cv.check_value('estimator', estimator, ESTIMATOR_TYPES | {None})
         self._estimator = estimator
+
+    @property
+    def frame(self):
+        return self._frame
+
+    @frame.setter
+    def frame(self, frame):
+        # allow the estimator to be set to None 
+        cv.check_value('frame', frame, ESTIMATOR_FRAMES)
+        self._frame = frame
 
     @property
     def triggers(self):
@@ -734,6 +751,9 @@ class Tally(IDManagerMixin):
         # Must have same estimator
         if self.estimator != other.estimator:
             return False
+        
+        if self.frame != other.frame:
+            return False
 
         equal_filters = sorted(self.filters) == sorted(other.filters)
         equal_nuclides = sorted(self.nuclides) == sorted(other.nuclides)
@@ -949,6 +969,10 @@ class Tally(IDManagerMixin):
             subelement = ET.SubElement(element, "estimator")
             subelement.text = self.estimator
 
+        if self.frame is not None:
+            subelement = ET.SubElement(element, "frame")
+            subelement.text = self.frame
+
         # Optional Triggers
         for trigger in self.triggers:
             element.append(trigger.to_xml_element())
@@ -1033,6 +1057,11 @@ class Tally(IDManagerMixin):
         estimator = get_text(elem, "estimator")
         if estimator is not None:
             tally.estimator = estimator
+
+        # Set estimator
+        frame = get_text(elem, "frame")
+        if frame is not None:
+            tally.frame = frame
 
         # Read triggers
         tally.triggers = [
@@ -1497,7 +1526,7 @@ class Tally(IDManagerMixin):
 
         # Expand the columns into Pandas MultiIndices for readability
         if pd.__version__ >= '0.16':
-            columns = copy.deepcopy(df.columns.values)
+            columns = np.array(copy.deepcopy(df.columns.values))
 
             # Convert all elements in columns list to tuples
             for i, column in enumerate(columns):
@@ -1683,6 +1712,7 @@ class Tally(IDManagerMixin):
         new_tally.with_batch_statistics = True
         new_tally._num_realizations = self.num_realizations
         new_tally._estimator = self.estimator
+        new_tally._frame = self.frame
         new_tally._with_summary = self.with_summary
         new_tally._sp_filename = self._sp_filename
 
@@ -1749,6 +1779,8 @@ class Tally(IDManagerMixin):
         # Set tally attributes
         if self_copy.estimator == other_copy.estimator:
             new_tally.estimator = self_copy.estimator
+        if self_copy.frame == other_copy.frame:
+            new_tally.frame = self_copy.frame
         if self_copy.with_summary and other_copy.with_summary:
             new_tally.with_summary = self_copy.with_summary
         if self_copy.num_realizations == other_copy.num_realizations:
@@ -2234,6 +2266,7 @@ class Tally(IDManagerMixin):
             new_tally._mean = self.mean + other
             new_tally._std_dev = self.std_dev
             new_tally.estimator = self.estimator
+            new_tally.frame = self.frame
             new_tally.with_summary = self.with_summary
             new_tally.num_realizations = self.num_realizations
 
@@ -2305,6 +2338,7 @@ class Tally(IDManagerMixin):
             new_tally._mean = self.mean - other
             new_tally._std_dev = self.std_dev
             new_tally.estimator = self.estimator
+            new_tally.frame = self.frame
             new_tally.with_summary = self.with_summary
             new_tally.num_realizations = self.num_realizations
 
@@ -2376,6 +2410,7 @@ class Tally(IDManagerMixin):
             new_tally._mean = self.mean * other
             new_tally._std_dev = self.std_dev * np.abs(other)
             new_tally.estimator = self.estimator
+            new_tally.frame = self.frame
             new_tally.with_summary = self.with_summary
             new_tally.num_realizations = self.num_realizations
 
@@ -2448,6 +2483,7 @@ class Tally(IDManagerMixin):
             new_tally._std_dev = self.std_dev * np.abs(1. / other)
             if self.estimator is not None:
                 new_tally.estimator = self.estimator
+            new_tally.frame = self.frame
             new_tally.with_summary = self.with_summary
             new_tally.num_realizations = self.num_realizations
 
@@ -2829,6 +2865,7 @@ class Tally(IDManagerMixin):
         tally_sum = Tally()
         tally_sum._derived = True
         tally_sum._estimator = self.estimator
+        tally_sum._frame = self.frame
         tally_sum._num_realizations = self.num_realizations
         tally_sum._with_batch_statistics = self.with_batch_statistics
         tally_sum._with_summary = self.with_summary
