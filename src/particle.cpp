@@ -120,17 +120,7 @@ void Particle::transform_frame(ParticleFrame target)
 
   Direction vp = speed() * u() + dir * v_m();
 
-  // double beta; 
-  // double Et;
-
-  // beta = vp.norm() / C_LIGHT;
-
   // // calculate the non-relativistic energy
-
-  // Et = mass * beta * beta / 2;
-
-  // double Et = E() + dir * mass * v.dot(v_m()) / (C_LIGHT * C_LIGHT) 
-  //       + 0.5 * mass * v_m().dot(v_m()) / (C_LIGHT * C_LIGHT);
 
   double Et = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
 
