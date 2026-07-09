@@ -32,6 +32,8 @@
 #include "openmc/track_output.h"
 #include "openmc/weight_windows.h"
 
+
+
 #ifdef OPENMC_DAGMC_ENABLED
 #include "DagMC.hpp"
 #endif
@@ -94,7 +96,7 @@ void Particle::transform_frame(ParticleFrame target)
   if (target == frame()){
     return;
   }
-
+  // if material velocity is zero
   if (v_m().norm() == 0){
     return;
   }
@@ -114,19 +116,29 @@ void Particle::transform_frame(ParticleFrame target)
     break;
   }
 
-  Position v = speed() * u();
-  auto vp = v + dir * v_m();
+  // galilean transform
+
+  Direction vp = speed() * u() + dir * v_m();
+
+  // double beta; 
+  // double Et;
+
+  // beta = vp.norm() / C_LIGHT;
+
+  // // calculate the non-relativistic energy
+
+  // Et = mass * beta * beta / 2;
+
+  // double Et = E() + dir * mass * v.dot(v_m()) / (C_LIGHT * C_LIGHT) 
+  //       + 0.5 * mass * v_m().dot(v_m()) / (C_LIGHT * C_LIGHT);
+
+  double Et = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
 
   // If material velocity and particle velocity are equivalent
   // direction remains and energy becomes 0+. 
   // Otherwise transform particle energy will be zero 
   // and particle direction undefined.
 
-  // double Et = E() + dir * mass * v.dot(v_m()) / (C_LIGHT * C_LIGHT) 
-  //       + 0.5 * mass * v_m().dot(v_m()) / (C_LIGHT * C_LIGHT);
-
-  double Et = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
-  
   if (Et > 0.0) {
     u() = vp / vp.norm();
     E() = Et;
@@ -140,6 +152,10 @@ void Particle::transform_frame(ParticleFrame target)
 
 double Particle::dscale()
 {
+
+  if (v_m().norm() == 0){
+    return 1.;
+  }
 
   int s = - static_cast<int>(frame());
 
@@ -330,6 +346,7 @@ void Particle::event_advance()
     transform_frame(ParticleFrame::lab);
   }
 
+  // Transform comoving to lab collision_distance
   collision_distance() *= dscale();
 
   // Find the distance to the nearest boundary
