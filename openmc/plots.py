@@ -709,6 +709,7 @@ class Plot(PlotBase):
     def origin(self, origin):
         cv.check_type('plot origin', origin, Iterable, Real)
         cv.check_length('plot origin', origin, 3, 4)
+        origin = tuple(origin)
         if len(origin) == 3:
             self._origin = origin + tuple([0])
         else:
