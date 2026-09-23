@@ -45,6 +45,7 @@ private:
   // Data members
 
   vector<double> bins_;
+  bool outgoing_ {false};
 };
 
 } // namespace openmc

@@ -2129,10 +2129,17 @@ class PolarFilter(RealFilter):
     """
     units = 'rad'
 
-    def __init__(self, values, filter_id=None):
+    def __init__(self, values, filter_id=None, outgoing=False):
         if isinstance(values, Integral):
             values = np.linspace(0., np.pi, values + 1)
         super().__init__(values, filter_id)
+        self.outgoing = bool(outgoing)
+
+    def to_xml_element(self):
+        element = super().to_xml_element()
+        if self.outgoing:
+            ET.SubElement(element, 'outgoing').text = 'true'
+        return element
 
     def check_bins(self, bins):
         super().check_bins(bins)

@@ -12,6 +12,8 @@ namespace openmc {
 void PolarFilter::from_xml(pugi::xml_node node)
 {
   auto bins = get_node_array<double>(node, "bins");
+  if (check_for_node(node, "outgoing"))
+    outgoing_ = get_node_value_bool(node, "outgoing");
 
   if (bins.size() == 1) {
     // Allow a user to input a lone number which will mean that you subdivide
@@ -52,8 +54,9 @@ void PolarFilter::set_bins(span<double> bins)
 void PolarFilter::get_all_bins(
   const Particle& p, TallyEstimator estimator, FilterMatch& match) const
 {
-  double z =
-    (estimator == TallyEstimator::TRACKLENGTH) ? p.u().z : p.u_last().z;
+  double z = (outgoing_ || estimator == TallyEstimator::TRACKLENGTH)
+               ? p.u().z
+               : p.u_last().z;
   double theta = std::acos(z);
 
   if (theta >= bins_.front() && theta <= bins_.back()) {

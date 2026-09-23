@@ -2,6 +2,7 @@
 
 #include <algorithm> // copy, min
 #include <cmath>     // log, abs
+#include <cstdlib>   // getenv
 
 #include <fmt/core.h>
 
@@ -98,6 +99,16 @@ void Particle::transform_frame(ParticleFrame target)
   }
   // if material velocity is zero
   if (v_m().norm() == 0){
+    // Lab and comoving coordinates coincide in a stationary material, but the
+    // frame label must still follow the requested transport state.  Otherwise
+    // a subsequent crossing into moving material applies the new material
+    // velocity to coordinates carrying a stale frame label.
+    // The opt-in legacy mode exists only for paired regression studies of the
+    // stationary/moving interface bug. Normal transport always updates the
+    // label, even though the phase-space coordinates are unchanged.
+    const char* legacy = std::getenv("OPENMC4D_LEGACY_STATIONARY_FRAME");
+    if (!(legacy && legacy[0] == '1'))
+      frame() = target;
     return;
   }
 
@@ -118,26 +129,50 @@ void Particle::transform_frame(ParticleFrame target)
 
   // galilean transform
 
-  Direction vp = speed() * u() + dir * v_m();
+  auto transform_phase_point = [&](double& energy, Direction& direction) {
+    // Avoid subtracting nearly equal numbers at thermal/subthermal energies.
+    const double kinetic_ratio = energy / mass;
+    const double point_speed = C_LIGHT *
+      std::sqrt(kinetic_ratio * (kinetic_ratio + 2.0)) / (kinetic_ratio + 1.0);
+    Direction vp = point_speed * direction + dir * v_m();
+    const double beta_squared = vp.dot(vp) / (C_LIGHT * C_LIGHT);
+    const double inverse_gamma = std::sqrt(1.0 - beta_squared);
+    // Rationalized gamma-1: beta^2/[sqrt(1-beta^2)*(1+sqrt(1-beta^2))].
+    const double Et = mass * beta_squared /
+      (inverse_gamma * (1.0 + inverse_gamma));
 
-  // // calculate the non-relativistic energy
+    // If material velocity and particle velocity are equivalent, retain a
+    // defined direction and place the energy just above zero.
+    if (Et > 0.0) {
+      direction = vp / vp.norm();
+      energy = Et;
+    } else {
+      direction = -v_m() / v_m().norm();
+      energy = MIN_ENERGY;
+    }
+  };
 
-  double Et = mass * (C_LIGHT / std::sqrt(C_LIGHT * C_LIGHT - vp.dot(vp)) - 1);
-
-  // If material velocity and particle velocity are equivalent
-  // direction remains and energy becomes 0+. 
-  // Otherwise transform particle energy will be zero 
-  // and particle direction undefined.
-
-  if (Et > 0.0) {
-    u() = vp / vp.norm();
-    E() = Et;
-  } else {
-    u() = -v_m() / v_m().norm();
-    E() = MIN_ENERGY;
-  }
+  transform_phase_point(E(), u());
+  // Incoming-energy tally filters use the saved pre-collision phase point.
+  // It must follow the same frame as the current particle state.
+  transform_phase_point(E_last(), u_last());
   this->frame() = target;
   resynchronize4d();
+
+  // A frame transformation changes the base-level flight direction. Keep the
+  // direction stored at every nested universe/lattice coordinate level in
+  // sync, just as collision handling does after sampling an outgoing angle.
+  // Otherwise lattice-distance calculations use stale lower-level directions
+  // and can report a negative distance immediately after entering or leaving
+  // a moving material.
+  for (int j = 0; j < n_coord() - 1; ++j) {
+    if (coord(j + 1).rotated()) {
+      const auto& m {model::cells[coord(j).cell()]->rotation_};
+      coord(j + 1).u() = coord(j).u().rotate(m);
+    } else {
+      coord(j + 1).u() = coord(j).u();
+    }
+  }
 }
 
 double Particle::dscale()
@@ -338,6 +373,25 @@ void Particle::event_advance()
 
   // Transform comoving to lab collision_distance
   collision_distance() *= dscale();
+
+  // Opt-in study-only stationary capture operator: change the flight hazard,
+  // not microscopic reaction selection or particle frame coordinates.
+  static const char* lab_id = std::getenv("OPENMC4D_LAB_ABSORBER_ID");
+  static const char* lab_u = std::getenv("OPENMC4D_LAB_ABSORBER_U_CM_S");
+  if (lab_id && lab_u && settings::run_CE &&
+      type() == ParticleType::neutron && material() != MATERIAL_VOID &&
+      model::materials[material()]->id() == std::atoi(lab_id)) {
+    if (v_m().norm() != 0.0)
+      fatal_error("Lab absorber diagnostic requires zero material velocity.");
+    if (std::abs(macro_xs().total - macro_xs().absorption) >
+          1.e-12 * macro_xs().total || macro_xs().fission != 0.0)
+      fatal_error("Lab absorber diagnostic requires capture-only material.");
+    const double beta = std::atof(lab_u) / this->speed();
+    const double q = std::sqrt(1.0 - 2.0 * beta * u().x + beta * beta);
+    collision_distance() = q > 0.0 ? collision_distance() / q : INFINITY;
+    // Native XS-based reaction-rate tallies are not modified by this
+    // diagnostic. Its intended observable is the eigenvalue only.
+  }
 
   // Find the distance to the nearest boundary
   boundary() = distance_to_boundary(*this);

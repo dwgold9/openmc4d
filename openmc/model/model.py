@@ -1632,6 +1632,7 @@ class Model:
         mgxs_path: PathLike,
         correction: str | None,
         directory: PathLike,
+        openmc_exec: PathLike = "openmc",
     ):
         """Generate a MGXS library by running multiple OpenMC simulations, each
         representing an infinite medium simulation of a single isolated
@@ -1732,7 +1733,7 @@ class Model:
             mgxs_lib.add_to_tallies_file(model.tallies, merge=True)
 
             # Run
-            statepoint_filename = model.run(cwd=directory)
+            statepoint_filename = model.run(cwd=directory, openmc_exec=openmc_exec)
 
             # Load MGXS
             with openmc.StatePoint(statepoint_filename) as sp:
@@ -1829,6 +1830,7 @@ class Model:
         mgxs_path: PathLike,
         correction: str | None,
         directory: PathLike,
+        openmc_exec: PathLike = "openmc",
     ) -> None:
         """Generate MGXS assuming a stochastic "sandwich" of materials in a layered
         slab geometry. While geometry-specific spatial shielding effects are not
@@ -1921,7 +1923,7 @@ class Model:
         mgxs_lib.add_to_tallies_file(model.tallies, merge=True)
 
         # Run
-        statepoint_filename = model.run(cwd=directory)
+        statepoint_filename = model.run(cwd=directory, openmc_exec=openmc_exec)
 
         # Load MGXS
         with openmc.StatePoint(statepoint_filename) as sp:
@@ -1940,6 +1942,7 @@ class Model:
         mgxs_path: PathLike,
         correction: str | None,
         directory: PathLike,
+        openmc_exec: PathLike = "openmc",
     ) -> None:
         """Generate a material-wise MGXS library for the model by running the
         original continuous energy OpenMC simulation of the full material
@@ -1964,6 +1967,8 @@ class Model:
             "P0".
         directory : PathLike
             Directory to run the simulation in, so as to contain XML files.
+        openmc_exec : PathLike, optional
+            Path to OpenMC executable. Defaults to 'openmc'.
         """
         model = copy.deepcopy(self)
         model.tallies = openmc.Tallies()
@@ -2016,7 +2021,7 @@ class Model:
         mgxs_lib.add_to_tallies_file(model.tallies, merge=True)
 
         # Run
-        statepoint_filename = model.run(cwd=directory)
+        statepoint_filename = model.run(cwd=directory, openmc_exec=openmc_exec)
 
         # Load MGXS
         with openmc.StatePoint(statepoint_filename) as sp:
@@ -2037,6 +2042,7 @@ class Model:
         overwrite_mgxs_library: bool = False,
         mgxs_path: PathLike = "mgxs.h5",
         correction: str | None = None,
+        openmc_exec: PathLike = "openmc",
     ):
         """Convert all materials from continuous energy to multigroup.
 
@@ -2055,6 +2061,9 @@ class Model:
         correction : str, optional
             Transport correction to apply to the MGXS. Options are None and
             "P0".
+        openmc_exec : PathLike, optional
+            Path to OpenMC executable used when generating the MGXS library.
+            Defaults to 'openmc'.
         """
         if isinstance(groups, str):
             groups = openmc.mgxs.EnergyGroups(groups)
@@ -2084,13 +2093,13 @@ class Model:
             if not Path(mgxs_path).is_file() or overwrite_mgxs_library:
                 if method == "infinite_medium":
                     self._generate_infinite_medium_mgxs(
-                        groups, nparticles, mgxs_path, correction, tmpdir)
+                        groups, nparticles, mgxs_path, correction, tmpdir, openmc_exec)
                 elif method == "material_wise":
                     self._generate_material_wise_mgxs(
-                        groups, nparticles, mgxs_path, correction, tmpdir)
+                        groups, nparticles, mgxs_path, correction, tmpdir, openmc_exec)
                 elif method == "stochastic_slab":
                     self._generate_stochastic_slab_mgxs(
-                        groups, nparticles, mgxs_path, correction, tmpdir)
+                        groups, nparticles, mgxs_path, correction, tmpdir, openmc_exec)
                 else:
                     raise ValueError(
                         f'MGXS generation method "{method}" not recognized')

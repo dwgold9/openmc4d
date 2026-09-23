@@ -2338,13 +2338,25 @@ void score_analog_tally_ce(Particle& p)
   for (auto i_tally : model::active_analog_tallies) {
     const Tally& tally {*model::tallies[i_tally]};
 
+    // Energy-dependent filters must see the particle in the frame requested
+    // by this tally. Filter matches are cached on the particle, so invalidate
+    // them when switching between otherwise identical lab/comoving tallies.
+    auto original_frame = p.frame();
+    p.transform_frame(tally.frame_ == TallyFrame::LAB
+                        ? ParticleFrame::lab
+                        : ParticleFrame::comoving);
+    for (auto& match : p.filter_matches())
+      match.bins_present_ = false;
+
     // Initialize an iterator over valid filter bin combinations.  If there are
     // no valid combinations, use a continue statement to ensure we skip the
     // assume_separate break below.
     auto filter_iter = FilterBinIter(tally, p);
     auto end = FilterBinIter(tally, true, &p.filter_matches());
-    if (filter_iter == end)
+    if (filter_iter == end) {
+      p.transform_frame(original_frame);
       continue;
+    }
 
     // Loop over filter bins.
     for (; filter_iter != end; ++filter_iter) {
@@ -2368,6 +2380,7 @@ void score_analog_tally_ce(Particle& p)
     // separate, this implies that once a tally has been scored to, we needn't
     // check the others. This cuts down on overhead when there are many
     // tallies specified
+    p.transform_frame(original_frame);
     if (settings::assume_separate)
       break;
   }
@@ -2437,13 +2450,25 @@ void score_tracklength_tally(Particle& p, double distance)
   for (auto i_tally : model::active_tracklength_tallies) {
     const Tally& tally {*model::tallies[i_tally]};
 
+    auto original_frame = p.frame();
+    if (settings::run_CE) {
+      p.transform_frame(tally.frame_ == TallyFrame::LAB
+                          ? ParticleFrame::lab
+                          : ParticleFrame::comoving);
+      for (auto& match : p.filter_matches())
+        match.bins_present_ = false;
+    }
+
     // Initialize an iterator over valid filter bin combinations.  If there are
     // no valid combinations, use a continue statement to ensure we skip the
     // assume_separate break below.
     auto filter_iter = FilterBinIter(tally, p);
     auto end = FilterBinIter(tally, true, &p.filter_matches());
-    if (filter_iter == end)
+    if (filter_iter == end) {
+      if (settings::run_CE)
+        p.transform_frame(original_frame);
       continue;
+    }
 
     // Loop over filter bins.
     for (; filter_iter != end; ++filter_iter) {
@@ -2494,6 +2519,8 @@ void score_tracklength_tally(Particle& p, double distance)
     // separate, this implies that once a tally has been scored to, we needn't
     // check the others. This cuts down on overhead when there are many
     // tallies specified
+    if (settings::run_CE)
+      p.transform_frame(original_frame);
     if (settings::assume_separate)
       break;
   }
@@ -2517,13 +2544,25 @@ void score_collision_tally(Particle& p)
   for (auto i_tally : model::active_collision_tallies) {
     const Tally& tally {*model::tallies[i_tally]};
 
+    auto original_frame = p.frame();
+    if (settings::run_CE) {
+      p.transform_frame(tally.frame_ == TallyFrame::LAB
+                          ? ParticleFrame::lab
+                          : ParticleFrame::comoving);
+      for (auto& match : p.filter_matches())
+        match.bins_present_ = false;
+    }
+
     // Initialize an iterator over valid filter bin combinations.  If there are
     // no valid combinations, use a continue statement to ensure we skip the
     // assume_separate break below.
     auto filter_iter = FilterBinIter(tally, p);
     auto end = FilterBinIter(tally, true, &p.filter_matches());
-    if (filter_iter == end)
+    if (filter_iter == end) {
+      if (settings::run_CE)
+        p.transform_frame(original_frame);
       continue;
+    }
 
     // Loop over filter bins.
     for (; filter_iter != end; ++filter_iter) {
@@ -2572,6 +2611,8 @@ void score_collision_tally(Particle& p)
     // separate, this implies that once a tally has been scored to, we needn't
     // check the others. This cuts down on overhead when there are many
     // tallies specified
+    if (settings::run_CE)
+      p.transform_frame(original_frame);
     if (settings::assume_separate)
       break;
   }
